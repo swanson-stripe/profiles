@@ -1,0 +1,1068 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Company, PaymentMethod, companies, paymentMethods } from '@/lib/data';
+import { PaymentCard, CardLayout } from './payment-card';
+import { SlidingNumber } from './sliding-number';
+import { Send, X, Mail } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  MorphingDialog,
+  MorphingDialogTrigger,
+  MorphingDialogContainer,
+  MorphingDialogContent,
+  MorphingDialogClose,
+} from '@/components/motion-primitives/morphing-dialog';
+
+type FlowState = 'select' | 'review' | 'sending' | 'sent';
+type CardAnimationState = 'full' | 'sending' | 'minimal' | 'complete';
+
+type PaymentFlowProps = {
+  amountInCents: number;
+  onAmountChange: (amountInCents: number) => void;
+  senderCompany: Company;
+  onSenderCompanyChange: (company: Company) => void;
+  receiverCompany: Company;
+  onReceiverCompanyChange: (company: Company) => void;
+  paymentMethod: PaymentMethod;
+  onPaymentMethodChange: (paymentMethod: PaymentMethod) => void;
+  layout: CardLayout;
+  isModal?: boolean;
+};
+
+// Convert cents to formatted dollars display
+function formatCentsAsDollars(cents: number): string {
+  const dollars = cents / 100;
+  return dollars.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function PaymentFlow({
+  amountInCents,
+  onAmountChange,
+  senderCompany,
+  onSenderCompanyChange,
+  receiverCompany,
+  onReceiverCompanyChange,
+  paymentMethod,
+  onPaymentMethodChange,
+  layout,
+  isModal = false,
+}: PaymentFlowProps) {
+  const [flowState, setFlowState] = useState<FlowState>('select');
+  const [cardAnimationState, setCardAnimationState] = useState<CardAnimationState>('full');
+  const [paymentMethodType, setPaymentMethodType] = useState('stripe-network');
+  const [displayValue, setDisplayValue] = useState(formatCentsAsDollars(amountInCents));
+
+  const currency = paymentMethodType === 'stablecoin' ? 'USDC' : 'USD';
+
+  // Sync display value when parent amount changes
+  useEffect(() => {
+    setDisplayValue(formatCentsAsDollars(amountInCents));
+  }, [amountInCents]);
+
+  function handleAmountInput(value: string) {
+    // Remove all non-digit characters except decimal point
+    const cleaned = value.replace(/[^\d.]/g, '');
+
+    // Handle multiple decimal points - keep only the first
+    const parts = cleaned.split('.');
+    const formatted = parts.length > 1
+      ? parts[0] + '.' + parts.slice(1).join('')
+      : cleaned;
+
+    // Limit decimal places to 2
+    const [integerPart, decimalPart] = formatted.split('.');
+    const limitedDecimal = decimalPart ? decimalPart.substring(0, 2) : '';
+
+    // Parse to get cents
+    const dollars = parseFloat(integerPart || '0');
+    const cents = limitedDecimal ? parseInt(limitedDecimal.padEnd(2, '0'), 10) : 0;
+    const totalCents = dollars * 100 + cents;
+
+    // Update parent state
+    onAmountChange(totalCents);
+
+    // Format for display with commas
+    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const displayVal = decimalPart !== undefined
+      ? `${formattedInteger}.${limitedDecimal}`
+      : formattedInteger;
+
+    setDisplayValue(displayVal);
+  }
+
+  const handleReview = () => {
+    if (amountInCents > 0) {
+      setFlowState('review');
+    }
+  };
+
+  const handleConfirmAndSend = () => {
+    setFlowState('sending');
+    setCardAnimationState('full');
+
+    // Animation sequence
+    setTimeout(() => setCardAnimationState('sending'), 1000);
+    setTimeout(() => setCardAnimationState('minimal'), 2500);
+    setTimeout(() => {
+      setCardAnimationState('complete');
+      setFlowState('sent');
+    }, 4000);
+  };
+
+  const handleBack = () => {
+    if (flowState === 'review') {
+      setFlowState('select');
+    } else if (flowState === 'sent' || flowState === 'sending') {
+      setFlowState('select');
+      setCardAnimationState('full');
+    }
+  };
+
+  if (isModal) {
+    return (
+      <MorphingDialog>
+        <MorphingDialogTrigger className="px-6 py-3 bg-white rounded-lg shadow-lg flex items-center gap-2 text-base font-semibold hover:shadow-xl transition-shadow" style={{ color: '#21252C' }}>
+          <Mail className="w-5 h-5" />
+          Send
+        </MorphingDialogTrigger>
+
+        <MorphingDialogContainer>
+          <MorphingDialogContent className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[85vh] flex overflow-hidden">
+            {/* Left Side - Form */}
+            <div className="flex-1 flex flex-col p-8">
+              <div className="w-full">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <Send className="w-6 h-6" style={{ color: '#21252C' }} />
+                    <h1 className="text-2xl font-bold" style={{ color: '#21252C' }}>Send</h1>
+                  </div>
+                  <MorphingDialogClose />
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {flowState === 'select' && (
+                    <motion.div
+                      key="select"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className="flex flex-col flex-1"
+                    >
+                      {/* Amount Input for modal */}
+                      <div className="mb-8">
+                        <div className="flex items-center justify-center">
+                          <span className="text-base" style={{ color: '#596171' }}>$</span>
+                          <input
+                            type="text"
+                            value={displayValue}
+                            onChange={(e) => handleAmountInput(e.target.value)}
+                            className="tabular-nums border-none outline-none bg-transparent text-center"
+                            style={{ color: '#21252C', fontSize: '54px', fontWeight: 500, width: `${Math.max(displayValue.length * 0.6, 3)}em` }}
+                            placeholder="2,000.00"
+                          />
+                          <span className="text-base" style={{ color: '#596171' }}>
+                            {currency}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* From Section */}
+                      <div className="mb-6">
+                        <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                          From
+                        </label>
+                        <select
+                          value={paymentMethod.id}
+                          onChange={(e) => {
+                            const selected = paymentMethods.find((p) => p.id === e.target.value);
+                            if (selected) onPaymentMethodChange(selected);
+                          }}
+                          className="w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white text-base appearance-none"
+                          style={{
+                            borderColor: '#D8DEE4',
+                            backgroundImage: 'url(/img/arrowUpDown.svg)',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 1rem center',
+                            backgroundSize: '16px',
+                            paddingRight: '3rem',
+                            '--tw-ring-color': '#675DFF'
+                          } as React.CSSProperties}
+                        >
+                          {paymentMethods.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              Main • {p.displayName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* To Section */}
+                      <div className="mb-6">
+                        <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                          To
+                        </label>
+                        <select
+                          value={receiverCompany.id}
+                          onChange={(e) => {
+                            const selected = companies.find((c) => c.id === e.target.value);
+                            if (selected) onReceiverCompanyChange(selected);
+                          }}
+                          className="w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white text-base appearance-none"
+                          style={{
+                            borderColor: '#D8DEE4',
+                            backgroundImage: 'url(/img/arrowUpDown.svg)',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 1rem center',
+                            backgroundSize: '16px',
+                            paddingRight: '3rem',
+                            '--tw-ring-color': '#675DFF'
+                          } as React.CSSProperties}
+                        >
+                          {companies.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.displayName}, Inc.
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Method Section */}
+                      <div className="mb-auto">
+                        <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                          Method
+                        </label>
+                        <select
+                          value={paymentMethodType}
+                          onChange={(e) => setPaymentMethodType(e.target.value)}
+                          className="w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white text-base appearance-none"
+                          style={{
+                            borderColor: '#D8DEE4',
+                            backgroundImage: 'url(/img/arrowUpDown.svg)',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 1rem center',
+                            backgroundSize: '16px',
+                            paddingRight: '3rem',
+                            '--tw-ring-color': '#675DFF'
+                          } as React.CSSProperties}
+                        >
+                          <option value="stripe-network">Stripe network</option>
+                          <option value="direct-bank">Direct bank transfer</option>
+                          <option value="link">Link</option>
+                          <option value="stablecoin">Stablecoin</option>
+                        </select>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-4 mt-8">
+                        <button className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors" style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}>
+                          Back
+                        </button>
+                        <button
+                          onClick={handleReview}
+                          className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
+                          style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
+                        >
+                          Review
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {flowState === 'review' && (
+                    <motion.div
+                      key="review"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className="flex flex-col flex-1"
+                    >
+                      <h2 className="text-lg font-bold mb-6" style={{ color: '#21252C' }}>Summary</h2>
+
+                      <div className="mb-6">
+                        <p className="text-base leading-relaxed" style={{ color: '#21252C' }}>
+                          Sending <span className="font-semibold">${formatCentsAsDollars(amountInCents)}</span> from{' '}
+                          <span className="inline-flex items-center gap-1">
+                            <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold">
+                              {paymentMethod.icon}
+                            </span>
+                            <span className="font-semibold">Main • {paymentMethod.displayName}</span>
+                          </span>{' '}
+                          to <span className="font-semibold">{receiverCompany.displayName}</span> via{' '}
+                          <span className="inline-flex items-center gap-1">
+                            <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold">
+                              S
+                            </span>
+                            <span className="font-semibold">Stripe network</span>
+                          </span>
+                          . Funds will transfer instantly.
+                        </p>
+                      </div>
+
+                      <div className="mb-auto">
+                        <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                          Add an internal note
+                          <span className="text-xs font-normal text-gray-500">Optional</span>
+                        </label>
+                        <textarea
+                          placeholder="Describe the purpose of sending funds."
+                          className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none h-32"
+                          style={{
+                            borderColor: '#D8DEE4',
+                            '--tw-ring-color': '#675DFF'
+                          } as React.CSSProperties}
+                        />
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-4 mt-8">
+                        <button
+                          onClick={handleBack}
+                          className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                          style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}
+                        >
+                          Back
+                        </button>
+                        <button
+                          onClick={handleConfirmAndSend}
+                          className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
+                          style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
+                        >
+                          Confirm and send
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {(flowState === 'sending' || flowState === 'sent') && (
+                    <motion.div
+                      key="sending"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex flex-col items-center justify-center flex-1"
+                    >
+                      <div className="text-center">
+                        <div className="text-2xl font-bold mb-2" style={{ color: '#21252C' }}>
+                          {flowState === 'sent' ? 'Payment Sent!' : 'Sending payment...'}
+                        </div>
+                        <div className="text-gray-600">
+                          {flowState === 'sent' ? 'Your payment has been successfully sent' : 'Please wait while we process your payment'}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+          <AnimatePresence mode="wait">
+            {flowState === 'select' && (
+              <motion.div
+                key="select"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex flex-col flex-1"
+              >
+                {/* Amount Input (modal) or Summary (profiles) */}
+                {isModal ? (
+                  <div className="mb-8">
+                    <div className="flex items-center justify-center">
+                      <span className="text-base" style={{ color: '#596171' }}>$</span>
+                      <input
+                        type="text"
+                        value={displayValue}
+                        onChange={(e) => handleAmountInput(e.target.value)}
+                        className="tabular-nums border-none outline-none bg-transparent text-center"
+                        style={{ color: '#21252C', fontSize: '54px', fontWeight: 500, width: `${Math.max(displayValue.length * 0.6, 3)}em` }}
+                        placeholder="2,000.00"
+                      />
+                      <span className="text-base" style={{ color: '#596171' }}>
+                        {currency}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-8">
+                    <h2 className="text-lg font-bold mb-6" style={{ color: '#21252C' }}>Summary</h2>
+                    <p className="text-base" style={{ color: '#21252C', lineHeight: '1.5' }}>
+                      Sending <span className="font-semibold">${formatCentsAsDollars(amountInCents)}</span> from{' '}
+                      <span className="inline-flex items-baseline gap-1">
+                        <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold flex-shrink-0" style={{ transform: 'translateY(-10%)' }}>
+                          {paymentMethod.icon}
+                        </span>
+                        <span className="font-semibold">Main • {paymentMethod.displayName}</span>
+                      </span>{' '}
+                      to <span className="font-semibold">{receiverCompany.displayName}</span> via{' '}
+                      <span className="inline-flex items-baseline gap-1">
+                        <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold flex-shrink-0" style={{ transform: 'translateY(-10%)' }}>
+                          S
+                        </span>
+                        <span className="font-semibold">Stripe network</span>
+                      </span>
+                      . Funds will transfer instantly.
+                    </p>
+                  </div>
+                )}
+
+                {/* From Section */}
+                <div className="mb-6">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    From
+                  </label>
+                  <select
+                    value={paymentMethod.id}
+                    onChange={(e) => {
+                      const selected = paymentMethods.find((p) => p.id === e.target.value);
+                      if (selected) onPaymentMethodChange(selected);
+                    }}
+                    className="w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white text-base appearance-none"
+                    style={{
+                      borderColor: '#D8DEE4',
+                      backgroundImage: 'url(/img/arrowUpDown.svg)',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 1rem center',
+                      backgroundSize: '16px',
+                      paddingRight: '3rem',
+                      '--tw-ring-color': '#675DFF'
+                    } as React.CSSProperties}
+                  >
+                    {paymentMethods.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        Main • {p.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* To Section - only show in modal */}
+                {isModal && (
+                  <div className="mb-6">
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      To
+                    </label>
+                    <select
+                      value={receiverCompany.id}
+                      onChange={(e) => {
+                        const selected = companies.find((c) => c.id === e.target.value);
+                        if (selected) onReceiverCompanyChange(selected);
+                      }}
+                      className="w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white text-base appearance-none"
+                      style={{
+                        borderColor: '#D8DEE4',
+                        backgroundImage: 'url(/img/arrowUpDown.svg)',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 1rem center',
+                        backgroundSize: '16px',
+                        paddingRight: '3rem',
+                        '--tw-ring-color': '#675DFF'
+                      } as React.CSSProperties}
+                    >
+                      {companies.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.displayName}, Inc.
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Method Section */}
+                <div className="mb-auto">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    Method
+                  </label>
+                  <select
+                    value={paymentMethodType}
+                    onChange={(e) => setPaymentMethodType(e.target.value)}
+                    className="w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white text-base appearance-none"
+                    style={{
+                      borderColor: '#D8DEE4',
+                      backgroundImage: 'url(/img/arrowUpDown.svg)',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 1rem center',
+                      backgroundSize: '16px',
+                      paddingRight: '3rem',
+                      '--tw-ring-color': '#675DFF'
+                    } as React.CSSProperties}
+                  >
+                    <option value="stripe-network">Stripe network</option>
+                    <option value="direct-bank">Direct bank transfer</option>
+                    <option value="link">Link</option>
+                    <option value="stablecoin">Stablecoin</option>
+                  </select>
+                </div>
+
+                {/* Action Buttons */}
+                {isModal ? (
+                  <div className="flex gap-4 mt-8">
+                    <button className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors" style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}>
+                      Back
+                    </button>
+                    <button
+                      onClick={handleReview}
+                      className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
+                      style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
+                    >
+                      Review
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-8">
+                    <button
+                      onClick={handleConfirmAndSend}
+                      className="w-full px-6 py-3 text-white text-base font-semibold transition-colors"
+                      style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
+                    >
+                      Confirm and send
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {flowState === 'review' && (
+              <motion.div
+                key="review"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex flex-col flex-1"
+              >
+                <h2 className="text-lg font-bold mb-6" style={{ color: '#21252C' }}>Summary</h2>
+
+                <div className="mb-6">
+                  <p className="text-base leading-relaxed" style={{ color: '#21252C' }}>
+                    Sending <span className="font-semibold">${formatCentsAsDollars(amountInCents)}</span> from{' '}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold">
+                        {paymentMethod.icon}
+                      </span>
+                      <span className="font-semibold">Main • {paymentMethod.displayName}</span>
+                    </span>{' '}
+                    to <span className="font-semibold">{receiverCompany.displayName}</span> via{' '}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold">
+                        S
+                      </span>
+                      <span className="font-semibold">Stripe network</span>
+                    </span>
+                    . Funds will transfer instantly.
+                  </p>
+                </div>
+
+                <div className="mb-auto">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    Add an internal note
+                    <span className="text-xs font-normal text-gray-500">Optional</span>
+                  </label>
+                  <textarea
+                    placeholder="Describe the purpose of sending funds."
+                    className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none h-32"
+                    style={{
+                      borderColor: '#D8DEE4',
+                      '--tw-ring-color': '#675DFF'
+                    } as React.CSSProperties}
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4 mt-8">
+                  <button
+                    onClick={handleBack}
+                    className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleConfirmAndSend}
+                    className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
+                    style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
+                  >
+                    Confirm and send
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {(flowState === 'sending' || flowState === 'sent') && (
+              <motion.div
+                key="sending"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center flex-1"
+              >
+                <div className="text-center">
+                  <div className="text-2xl font-bold mb-2" style={{ color: '#21252C' }}>
+                    {flowState === 'sent' ? 'Payment Sent!' : 'Sending payment...'}
+                  </div>
+                  <div className="text-gray-600">
+                    {flowState === 'sent' ? 'Your payment has been successfully sent' : 'Please wait while we process your payment'}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Right Side - Card Preview */}
+            <div className="w-[45%] bg-gradient-to-br from-teal-100 via-amber-100 to-rose-100 flex items-center justify-center p-8">
+              <AnimatePresence mode="wait">
+                {(flowState === 'select' || flowState === 'review') && (
+                  <motion.div
+                    key="dual-cards-static"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="flex flex-col gap-4 items-center w-full"
+                  >
+                    {/* Sender Card */}
+                    <PaymentCard
+                      company={senderCompany}
+                      paymentMethod={paymentMethod}
+                      amount={amountInCents / 100}
+                      layout={layout}
+                    />
+
+                    {/* Dots connector */}
+                    <div className="flex flex-col gap-1">
+                      <div className="w-2 h-2 rounded-full bg-white/60" />
+                      <div className="w-2 h-2 rounded-full bg-white/60" />
+                      <div className="w-2 h-2 rounded-full bg-white/60" />
+                    </div>
+
+                    {/* Receiver Card */}
+                    <PaymentCard
+                      company={receiverCompany}
+                      paymentMethod={paymentMethod}
+                      amount={amountInCents / 100}
+                      layout={layout}
+                    />
+                  </motion.div>
+                )}
+
+                {(flowState === 'sending' || flowState === 'sent') && (
+                  <motion.div
+                    key="dual-cards-animated"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col gap-4 items-center w-full"
+                  >
+                    {/* Sender Card */}
+                    <TransactionCard
+                      company={senderCompany}
+                      paymentMethod={paymentMethod}
+                      amount={amountInCents / 100}
+                      status={flowState === 'sent' ? 'sent' : 'sending'}
+                      animationState={cardAnimationState}
+                      isSender
+                    />
+
+                    {/* Dots connector */}
+                    <div className="flex flex-col gap-1">
+                      <div className="w-2 h-2 rounded-full bg-white/60" />
+                      <div className="w-2 h-2 rounded-full bg-white/60" />
+                      <div className="w-2 h-2 rounded-full bg-white/60" />
+                    </div>
+
+                    {/* Receiver Card */}
+                    <TransactionCard
+                      company={receiverCompany}
+                      paymentMethod={paymentMethod}
+                      amount={amountInCents / 100}
+                      status={flowState === 'sent' ? 'received' : 'receiving'}
+                      animationState={cardAnimationState}
+                      isSender={false}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </MorphingDialogContent>
+        </MorphingDialogContainer>
+      </MorphingDialog>
+    );
+  }
+
+  // Profiles view
+  return (
+    <div className="w-full h-full flex overflow-hidden">
+      {/* Left Side - Form */}
+      <div className="w-full md:w-1/2 flex flex-col py-8 px-4 md:pr-20 md:px-8 bg-white items-end justify-center overflow-auto">
+        <div className="w-full max-w-[560px]">
+          <AnimatePresence mode="wait">
+            {flowState === 'select' && (
+              <motion.div
+                key="select"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex flex-col flex-1"
+              >
+                {/* Summary for profiles */}
+                <div className="mb-8">
+                  <h2 className="text-lg font-bold mb-6" style={{ color: '#21252C' }}>Summary</h2>
+                  <p className="text-base" style={{ color: '#21252C', lineHeight: '1.5' }}>
+                    Sending <span className="font-semibold">${formatCentsAsDollars(amountInCents)}</span> from{' '}
+                    <span className="inline-flex items-baseline gap-1">
+                      <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold flex-shrink-0" style={{ transform: 'translateY(-10%)' }}>
+                        {paymentMethod.icon}
+                      </span>
+                      <span className="font-semibold">Main • {paymentMethod.displayName}</span>
+                    </span>{' '}
+                    to <span className="font-semibold">{receiverCompany.displayName}</span> via{' '}
+                    <span className="inline-flex items-baseline gap-1">
+                      <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold flex-shrink-0" style={{ transform: 'translateY(-10%)' }}>
+                        S
+                      </span>
+                      <span className="font-semibold">Stripe network</span>
+                    </span>
+                    . Funds will transfer instantly.
+                  </p>
+                </div>
+
+                {/* From Section */}
+                <div className="mb-6">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    From
+                  </label>
+                  <select
+                    value={paymentMethod.id}
+                    onChange={(e) => {
+                      const selected = paymentMethods.find((p) => p.id === e.target.value);
+                      if (selected) onPaymentMethodChange(selected);
+                    }}
+                    className="w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white text-base appearance-none"
+                    style={{
+                      borderColor: '#D8DEE4',
+                      backgroundImage: 'url(/img/arrowUpDown.svg)',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 1rem center',
+                      backgroundSize: '16px',
+                      paddingRight: '3rem',
+                      '--tw-ring-color': '#675DFF'
+                    } as React.CSSProperties}
+                  >
+                    {paymentMethods.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        Main • {p.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Method Section */}
+                <div className="mb-auto">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    Method
+                  </label>
+                  <select
+                    value={paymentMethodType}
+                    onChange={(e) => setPaymentMethodType(e.target.value)}
+                    className="w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white text-base appearance-none"
+                    style={{
+                      borderColor: '#D8DEE4',
+                      backgroundImage: 'url(/img/arrowUpDown.svg)',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 1rem center',
+                      backgroundSize: '16px',
+                      paddingRight: '3rem',
+                      '--tw-ring-color': '#675DFF'
+                    } as React.CSSProperties}
+                  >
+                    <option value="stripe-network">Stripe network</option>
+                    <option value="direct-bank">Direct bank transfer</option>
+                    <option value="link">Link</option>
+                    <option value="stablecoin">Stablecoin</option>
+                  </select>
+                </div>
+
+                {/* Action Button for profiles */}
+                <div className="mt-8">
+                  <button
+                    onClick={handleConfirmAndSend}
+                    className="w-full px-6 py-3 text-white text-base font-semibold transition-colors"
+                    style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
+                  >
+                    Confirm and send
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {flowState === 'review' && (
+              <motion.div
+                key="review"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex flex-col flex-1"
+              >
+                <h2 className="text-lg font-bold mb-6" style={{ color: '#21252C' }}>Summary</h2>
+
+                <div className="mb-6">
+                  <p className="text-base leading-relaxed" style={{ color: '#21252C' }}>
+                    Sending <span className="font-semibold">${formatCentsAsDollars(amountInCents)}</span> from{' '}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold">
+                        {paymentMethod.icon}
+                      </span>
+                      <span className="font-semibold">Main • {paymentMethod.displayName}</span>
+                    </span>{' '}
+                    to <span className="font-semibold">{receiverCompany.displayName}</span> via{' '}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="inline-block w-5 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-semibold">
+                        S
+                      </span>
+                      <span className="font-semibold">Stripe network</span>
+                    </span>
+                    . Funds will transfer instantly.
+                  </p>
+                </div>
+
+                <div className="mb-auto">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    Add an internal note
+                    <span className="text-xs font-normal text-gray-500">Optional</span>
+                  </label>
+                  <textarea
+                    placeholder="Describe the purpose of sending funds."
+                    className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none h-32"
+                    style={{
+                      borderColor: '#D8DEE4',
+                      '--tw-ring-color': '#675DFF'
+                    } as React.CSSProperties}
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4 mt-8">
+                  <button
+                    onClick={handleBack}
+                    className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleConfirmAndSend}
+                    className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
+                    style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
+                  >
+                    Confirm and send
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {(flowState === 'sending' || flowState === 'sent') && (
+              <motion.div
+                key="sending"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center flex-1"
+              >
+                <div className="text-center">
+                  <div className="text-2xl font-bold mb-2" style={{ color: '#21252C' }}>
+                    {flowState === 'sent' ? 'Payment Sent!' : 'Sending payment...'}
+                  </div>
+                  <div className="text-gray-600">
+                    {flowState === 'sent' ? 'Your payment has been successfully sent' : 'Please wait while we process your payment'}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Right Side - Card Preview */}
+      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-teal-100 via-amber-100 to-rose-100 items-center justify-center p-4 md:p-8">
+        <AnimatePresence mode="wait">
+          {(flowState === 'select' || flowState === 'review') && (
+            <motion.div
+              key="dual-cards-static"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="flex flex-col gap-4 items-center w-full"
+            >
+              {/* Sender Card */}
+              <PaymentCard
+                company={senderCompany}
+                paymentMethod={paymentMethod}
+                amount={amountInCents / 100}
+                layout={layout}
+              />
+
+              {/* Dots connector */}
+              <div className="flex flex-col gap-1">
+                <div className="w-2 h-2 rounded-full bg-white/60" />
+                <div className="w-2 h-2 rounded-full bg-white/60" />
+                <div className="w-2 h-2 rounded-full bg-white/60" />
+              </div>
+
+              {/* Receiver Card */}
+              <PaymentCard
+                company={receiverCompany}
+                paymentMethod={paymentMethod}
+                amount={amountInCents / 100}
+                layout={layout}
+              />
+            </motion.div>
+          )}
+
+          {(flowState === 'sending' || flowState === 'sent') && (
+            <motion.div
+              key="dual-cards-animated"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col gap-4 items-center w-full"
+            >
+              {/* Sender Card */}
+              <TransactionCard
+                company={senderCompany}
+                paymentMethod={paymentMethod}
+                amount={amountInCents / 100}
+                status={flowState === 'sent' ? 'sent' : 'sending'}
+                animationState={cardAnimationState}
+                isSender
+              />
+
+              {/* Dots connector */}
+              <div className="flex flex-col gap-1">
+                <div className="w-2 h-2 rounded-full bg-white/60" />
+                <div className="w-2 h-2 rounded-full bg-white/60" />
+                <div className="w-2 h-2 rounded-full bg-white/60" />
+              </div>
+
+              {/* Receiver Card */}
+              <TransactionCard
+                company={receiverCompany}
+                paymentMethod={paymentMethod}
+                amount={amountInCents / 100}
+                status={flowState === 'sent' ? 'received' : 'receiving'}
+                animationState={cardAnimationState}
+                isSender={false}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+type TransactionCardProps = {
+  company: Company;
+  paymentMethod: PaymentMethod;
+  amount: number;
+  status: 'sending' | 'sent' | 'receiving' | 'received';
+  animationState: CardAnimationState;
+  isSender: boolean;
+};
+
+function TransactionCard({
+  company,
+  paymentMethod,
+  amount,
+  status,
+  animationState,
+  isSender,
+}: TransactionCardProps) {
+  const getStatusText = () => {
+    if (animationState === 'minimal' || animationState === 'complete') {
+      return status === 'sent' || status === 'sending' ? 'Sent' : 'Received';
+    }
+    if (status === 'receiving') return 'Receiving...';
+    if (status === 'received') return 'Received instantly';
+    return null;
+  };
+
+  const showFullContent = animationState === 'full' || animationState === 'sending';
+  const statusText = getStatusText();
+
+  return (
+    <motion.div
+      layout
+      className="w-64 rounded-2xl overflow-hidden shadow-lg bg-white"
+      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+    >
+      <motion.div
+        layout
+        className="px-5 py-3 flex items-center gap-2.5"
+        style={{ backgroundColor: company.color }}
+      >
+        <span className="text-white text-lg font-semibold">{company.icon}</span>
+        <motion.span layout className="text-white text-sm font-semibold">
+          {company.displayName}
+        </motion.span>
+      </motion.div>
+
+      <motion.div layout className="px-5 py-5">
+        <AnimatePresence mode="wait">
+          {showFullContent ? (
+            <motion.div
+              key="full"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <div className="text-4xl font-bold text-gray-900 mb-4 tabular-nums">
+                $<SlidingNumber value={amount} />
+              </div>
+
+              {statusText && animationState === 'sending' && (
+                <div className="text-sm text-gray-600 mb-3">{statusText}</div>
+              )}
+
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-semibold"
+                  style={{ backgroundColor: paymentMethod.color }}
+                >
+                  {paymentMethod.icon}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-gray-900 leading-tight">
+                    {paymentMethod.displayName}
+                  </span>
+                  {paymentMethod.last4 && (
+                    <span className="text-xs text-gray-600">••{paymentMethod.last4}</span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="minimal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-2xl font-bold text-gray-900"
+            >
+              {statusText}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
+  );
+}

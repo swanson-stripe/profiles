@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Company, PaymentMethod, companies, paymentMethods } from '@/lib/data';
 import { PaymentCard, CardLayout, SendingState } from './payment-card';
 import { SlidingNumber } from './sliding-number';
-import { Send, X, ArrowLeftRight, Globe, ArrowDownToLine, CreditCard, ReceiptText, Search, Plus } from 'lucide-react';
+import { Send, X, ArrowLeftRight, Globe, ArrowDownToLine, CreditCard, ReceiptText, Search, Plus, Check, ArrowUpRight, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence, MotionConfig } from 'motion/react';
 import { AnimatedGradientBg, GradientVariant } from './animated-gradient-bg';
 import { GlowEffect } from './motion-primitives/glow-effect';
@@ -40,6 +40,17 @@ function brightenColor(hex: string, factor = 1.5): string {
   const g = Math.min(255, Math.round(parseInt(hex.slice(3, 5), 16) * factor));
   const b = Math.min(255, Math.round(parseInt(hex.slice(5, 7), 16) * factor));
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function formatShortDate(date: Date): string {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 const SEND_PANEL_BASE = 'send-panel';
@@ -232,6 +243,7 @@ type SendingSummaryProps = {
   onMethodTypeChange: (t: string) => void;
   currentMethodType: MethodTypeOption;
   canEditMethod?: boolean;
+  verb?: string;
 };
 
 function SendingSummary({
@@ -246,23 +258,31 @@ function SendingSummary({
   onMethodTypeChange,
   currentMethodType,
   canEditMethod = true,
+  verb = 'Sending',
 }: SendingSummaryProps) {
   const [editing, setEditing] = React.useState<'amount' | 'source' | 'recipient' | 'method' | null>(null);
   const close = () => setEditing(null);
 
-  const logoStyle = (id: string): React.CSSProperties => ({
-    display: 'inline-block',
-    height: '14px',
-    width: '14px',
-    verticalAlign: 'text-bottom',
-    objectFit: 'contain',
-    marginRight: '0.2em',
-    ...(id === 'openai' ? { filter: 'brightness(0)' } : {}),
-  });
+  const iconLabel = (src: string | undefined, id: string, label: React.ReactNode) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: '-2px' }}>
+      {src && (
+        <img
+          src={src}
+          alt=""
+          style={{
+            width: 14, height: 14, objectFit: 'contain', flexShrink: 0,
+            position: 'relative', top: '-1px',
+            ...(id === 'openai' ? { filter: 'brightness(0)' } : {}),
+          }}
+        />
+      )}
+      <span className="font-medium">{label}</span>
+    </span>
+  );
 
   return (
     <p className="text-base" style={{ color: '#21252C', lineHeight: '1.7' }}>
-      {'Sending '}
+      {verb}{' '}
       {/* Amount */}
       <EditablePill
         isEditing={editing === 'amount'}
@@ -289,24 +309,10 @@ function SendingSummary({
       <EditablePill
         isEditing={editing === 'source'}
         onOpen={() => setEditing('source')}
-        displayContent={
-          <>
-            {(paymentMethod.methodLogoPath || paymentMethod.logoPath) && (
-              <img src={paymentMethod.methodLogoPath || paymentMethod.logoPath || ''} alt="" style={logoStyle('')} />
-            )}
-            <span className="font-medium">Main • {paymentMethod.displayName}</span>
-          </>
-        }
+        displayContent={iconLabel(paymentMethod.methodLogoPath || paymentMethod.logoPath, '', `Main • ${paymentMethod.displayName}`)}
         editContent={
           <SelectPill
-            displayContent={
-              <>
-                {(paymentMethod.methodLogoPath || paymentMethod.logoPath) && (
-                  <img src={paymentMethod.methodLogoPath || paymentMethod.logoPath || ''} alt="" style={logoStyle('')} />
-                )}
-                <span className="font-medium">Main • {paymentMethod.displayName}</span>
-              </>
-            }
+            displayContent={iconLabel(paymentMethod.methodLogoPath || paymentMethod.logoPath, '', `Main • ${paymentMethod.displayName}`)}
             selectValue={paymentMethod.id}
             onSelectChange={(val) => {
               const m = paymentMethods.find((p) => p.id === val);
@@ -319,78 +325,9 @@ function SendingSummary({
         }
       />
       {' to '}
-      {/* Recipient */}
-      <EditablePill
-        isEditing={editing === 'recipient'}
-        onOpen={() => setEditing('recipient')}
-        displayContent={
-          <>
-            {receiverCompany.logoPath && (
-              <img src={receiverCompany.logoPath} alt="" style={logoStyle(receiverCompany.id)} />
-            )}
-            <span className="font-medium">{receiverCompany.displayName}</span>
-          </>
-        }
-        editContent={
-          <SelectPill
-            displayContent={
-              <>
-                {receiverCompany.logoPath && (
-                  <img src={receiverCompany.logoPath} alt="" style={logoStyle(receiverCompany.id)} />
-                )}
-                <span className="font-medium">{receiverCompany.displayName}</span>
-              </>
-            }
-            selectValue={receiverCompany.id}
-            onSelectChange={(val) => {
-              const c = companies.find((co) => co.id === val);
-              if (c) onReceiverCompanyChange(c);
-              close();
-            }}
-            onBlur={close}
-            options={companies.map((c) => ({ value: c.id, label: c.displayName }))}
-          />
-        }
-      />
+      <span className="font-medium">{receiverCompany.displayName}</span>
       {' via '}
-      {/* Method */}
-      {canEditMethod ? (
-        <EditablePill
-          isEditing={editing === 'method'}
-          onOpen={() => setEditing('method')}
-          displayContent={
-            <>
-              {currentMethodType.iconPath && (
-                <img src={currentMethodType.iconPath} alt="" style={logoStyle('')} />
-              )}
-              <span className="font-medium">{currentMethodType.label}</span>
-            </>
-          }
-          editContent={
-            <SelectPill
-              displayContent={
-                <>
-                  {currentMethodType.iconPath && (
-                    <img src={currentMethodType.iconPath} alt="" style={logoStyle('')} />
-                  )}
-                  <span className="font-medium">{currentMethodType.label}</span>
-                </>
-              }
-              selectValue={paymentMethodType}
-              onSelectChange={(val) => { onMethodTypeChange(val); close(); }}
-              onBlur={close}
-              options={methodTypeOptions.map((m) => ({ value: m.value, label: m.label }))}
-            />
-          }
-        />
-      ) : (
-        <>
-          {currentMethodType.iconPath && (
-            <img src={currentMethodType.iconPath} alt={currentMethodType.label} style={logoStyle('')} />
-          )}
-          <span className="font-medium">{currentMethodType.label}</span>
-        </>
-      )}
+      <span className="font-medium">{currentMethodType.label}</span>
       {'. '}
       {currentMethodType.transferText}
     </p>
@@ -428,21 +365,33 @@ export function PaymentFlow({
   const [popoverAnchor, setPopoverAnchor] = useState<{ top: number; left: number } | null>(null);
   const [glowHovered, setGlowHovered] = useState(false);
   const [profileReviewOpen, setProfileReviewOpen] = useState(false);
+  const [profileConfirmState, setProfileConfirmState] = useState<'idle' | 'sending' | 'received' | 'done'>('idle');
+  const [profileBtnHovered, setProfileBtnHovered] = useState(false);
+  const [modalConfirmState, setModalConfirmState] = useState<'idle' | 'sending' | 'sent' | 'done'>('idle');
+  const [modalBtnHovered, setModalBtnHovered] = useState(false);
+  const [noteValue, setNoteValue] = useState('');
+  const [flowDirection, setFlowDirection] = useState<'forward' | 'backward'>('forward');
   const { ref: morphCardRef, clipPath: morphCardClipPath } = useSquircle(24, 1);
+  const [drainProgress, setDrainProgress] = useState(0);
+  const cardPreviewRef = useRef<HTMLDivElement>(null);
+  const [stackHeight, setStackHeight] = useState<number | null>(null);
 
   const isPersonInvolved = !!(senderCompany.isCustomer || receiverCompany.isCustomer);
 
   const currency = paymentMethodType === 'stablecoin' ? 'USDC' : 'USD';
   const currentMethodType = methodTypeOptions.find((m) => m.value === paymentMethodType) ?? methodTypeOptions[0];
 
-  // Lock method to Stripe Network + default source to Stripe balance for company-to-company flows; reset review popover
+  // Lock/default method based on person-vs-company flow; reset review popover
   useEffect(() => {
     if (!isPersonInvolved) {
       setPaymentMethodType('stripe-network');
       const stripeBalance = paymentMethods.find((p) => p.id === 'stripe');
       if (stripeBalance) onPaymentMethodChange(stripeBalance);
+    } else {
+      setPaymentMethodType('direct-bank');
     }
     setProfileReviewOpen(false);
+    setProfileConfirmState('idle');
   }, [isPersonInvolved]);
 
   // Sync display value when parent amount changes
@@ -468,6 +417,42 @@ export function PaymentFlow({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isModal, uiPhase]);
+
+  // Lock card preview height when sending begins so the modal never resizes
+  useEffect(() => {
+    if (cardAnimationState === 'sending' && cardPreviewRef.current) {
+      setStackHeight(cardPreviewRef.current.offsetHeight);
+    } else if (cardAnimationState === 'full') {
+      setStackHeight(null);
+    }
+  }, [cardAnimationState]);
+
+  // Animate drain progress (sender drains, receiver fills) during sending state
+  useEffect(() => {
+    if (cardAnimationState === 'full') {
+      setDrainProgress(0);
+      return;
+    }
+    if (cardAnimationState === 'minimal' || cardAnimationState === 'complete') {
+      setDrainProgress(1);
+      return;
+    }
+    if (cardAnimationState !== 'sending') return;
+
+    const duration = 3000;
+    const startTime = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      // Ease in-out cubic
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      setDrainProgress(eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [cardAnimationState]);
 
   // Click-outside closes popover via mousedown listener (avoids z-index overlay issues)
   useEffect(() => {
@@ -514,7 +499,32 @@ export function PaymentFlow({
 
   const handleReview = () => {
     if (amountInCents > 0) {
+      setFlowDirection('forward');
       setFlowState('review');
+      setModalConfirmState('idle');
+    }
+  };
+
+  // Modal in-place confirm — triggers card animations without leaving review state
+  const handleModalConfirm = () => {
+    setModalConfirmState('sending');
+    setCardAnimationState('full');
+    setTimeout(() => setCardAnimationState('sending'), 600);
+    if (isPersonInvolved) {
+      // For people: skip "received" state — direct to done
+      setTimeout(() => {
+        setModalConfirmState('done');
+        setCardAnimationState('complete');
+      }, 4000);
+    } else {
+      setTimeout(() => {
+        setModalConfirmState('sent');
+        setCardAnimationState('minimal');
+      }, 4000);
+      setTimeout(() => {
+        setModalConfirmState('done');
+        setCardAnimationState('complete');
+      }, 8000);
     }
   };
 
@@ -534,7 +544,9 @@ export function PaymentFlow({
 
   const handleBack = () => {
     if (flowState === 'review') {
+      setFlowDirection('backward');
       setFlowState('select');
+      setModalConfirmState('idle');
     } else if (flowState === 'sent' || flowState === 'sending') {
       setFlowState('select');
       setCardAnimationState('full');
@@ -563,36 +575,82 @@ export function PaymentFlow({
     : (cardAnimationState === 'minimal' || cardAnimationState === 'complete') ? 'sent'
     : 'idle';
 
+  const fullAmount = amountInCents / 100;
+  const isDraining = cardAnimationState === 'sending';
+  const isWholeAmount = amountInCents % 100 === 0;
+  const roundAmount = (v: number) => isWholeAmount ? Math.round(v) : v;
+  const senderDisplayAmount = isDraining ? roundAmount(fullAmount * (1 - drainProgress)) : fullAmount;
+  const receiverDisplayAmount = isDraining ? roundAmount(fullAmount * drainProgress) : fullAmount;
+
+  const isCardComplete = cardAnimationState === 'complete';
+
   const renderCardPreview = () => (
-    <div className="flex flex-col items-center w-full">
-      <PaymentCard
-        company={senderCompany}
-        paymentMethod={paymentMethod}
-        amount={amountInCents / 100}
-        layout={layout}
-        sendingState={sendingState}
-      />
-      <MethodChipConnector methodType={currentMethodType} sendingState={sendingState} />
-      <PaymentCard
-        company={receiverCompany}
-        paymentMethod={paymentMethod}
-        amount={amountInCents / 100}
-        layout={layout}
-        isReceiver
-        receiverDelivery={currentMethodType.deliveryText}
-        sendingState={sendingState}
-      />
+    <div
+      ref={cardPreviewRef}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        position: 'relative',
+        ...(stackHeight != null ? { height: `${stackHeight}px` } : {}),
+      }}
+    >
+      {/* popLayout immediately removes sender from layout flow so receiver starts sliding at the same time as the fade */}
+      <AnimatePresence mode="popLayout">
+        {!isCardComplete && (
+          <motion.div
+            key="sender-group"
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
+          >
+            <PaymentCard
+              company={senderCompany}
+              paymentMethod={paymentMethod}
+              amount={senderDisplayAmount}
+              layout={layout}
+              sendingState={sendingState}
+            />
+            <MethodChipConnector methodType={currentMethodType} sendingState={sendingState} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.div
+        layout
+        transition={{ type: 'spring', damping: 28, stiffness: 120 }}
+      >
+        <PaymentCard
+          company={receiverCompany}
+          paymentMethod={paymentMethod}
+          amount={receiverDisplayAmount}
+          layout={layout}
+          isReceiver
+          receiverDelivery={currentMethodType.deliveryText}
+          sendingState={sendingState}
+          dimAmount={isDraining && drainProgress < 0.02}
+        />
+      </motion.div>
     </div>
   );
+
+  const sendingLabel = paymentMethodType === 'direct-bank' ? 'Transfer initiated' : 'Payment initiated';
+  const modalSummaryVerb = modalConfirmState === 'idle' ? 'Sending' : modalConfirmState === 'done' ? 'Sent' : 'Sending';
+  const modalBtnBg = modalConfirmState === 'done'
+    ? hexToRgba(senderCompany.color, modalBtnHovered ? 0.18 : 0.1)
+    : modalConfirmState === 'idle'
+      ? (modalBtnHovered ? '#5549E6' : '#675DFF')
+      : receiverCompany.color;
 
   const renderModalFlowStates = () => (
     <AnimatePresence mode="wait">
       {flowState === 'select' && (
         <motion.div
           key="select"
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: flowDirection === 'forward' ? 20 : -20 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
+          exit={{ opacity: 0, x: -20 }}
           className="flex flex-col h-full"
         >
           {/* Scrollable content */}
@@ -719,7 +777,7 @@ export function PaymentFlow({
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   >
                     {methodTypeOptions.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
+                      <option key={m.value} value={m.value} disabled={isPersonInvolved && m.value === 'stripe-network'}>{m.label}</option>
                     ))}
                   </select>
                 </div>
@@ -728,18 +786,15 @@ export function PaymentFlow({
           </div>
 
           {/* Fixed buttons at bottom */}
-          <div className="flex gap-4 shrink-0">
-            <button className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors" style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}>
-              Back
-            </button>
+          <div className="shrink-0">
             <button
               onClick={handleReview}
-              className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
-              style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+              className="w-full px-6 py-3 text-white text-base font-semibold transition-colors"
+              style={{ backgroundColor: '#675DFF', borderRadius: '10px' }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
             >
-              Review
+              Review details
             </button>
           </div>
         </motion.div>
@@ -748,9 +803,9 @@ export function PaymentFlow({
       {flowState === 'review' && (
         <motion.div
           key="review"
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
+          exit={{ opacity: 0, x: -20 }}
           className="flex flex-col h-full"
         >
           {/* Scrollable content */}
@@ -770,62 +825,153 @@ export function PaymentFlow({
                 onMethodTypeChange={setPaymentMethodType}
                 currentMethodType={currentMethodType}
                 canEditMethod={isPersonInvolved}
+                verb={modalSummaryVerb}
               />
             </div>
 
-            <div className="mb-6">
-              <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                Add an internal note
-                <span className="text-xs font-normal text-gray-500">Optional</span>
-              </label>
-              <textarea
-                placeholder="Describe the purpose of sending funds."
-                className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none h-32"
-                style={{
-                  borderColor: '#D8DEE4',
-                  '--tw-ring-color': '#675DFF'
-                } as React.CSSProperties}
-              />
-            </div>
+            {/* Note — form when idle, text when sent, fades out if empty */}
+            <AnimatePresence initial={false}>
+              {modalConfirmState === 'idle' && (
+                <motion.div
+                  key="note-form"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                  style={{ overflow: 'hidden' }}
+                  className="mb-6"
+                >
+                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    Add an internal note
+                    <span className="text-xs font-normal text-gray-500">Optional</span>
+                  </label>
+                  <textarea
+                    value={noteValue}
+                    onChange={(e) => setNoteValue(e.target.value)}
+                    placeholder="Describe the purpose of sending funds."
+                    className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none h-32"
+                    style={{ borderColor: '#D8DEE4', '--tw-ring-color': '#675DFF' } as React.CSSProperties}
+                  />
+                </motion.div>
+              )}
+              {modalConfirmState !== 'idle' && noteValue.trim() && (
+                <motion.div
+                  key="note-text"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, delay: 0.1 }}
+                  className="mb-6"
+                >
+                  <p className="text-sm" style={{ color: '#596171' }}>
+                    <span className="font-semibold" style={{ color: '#21252C' }}>Note: </span>
+                    {noteValue}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Fixed buttons at bottom */}
-          <div className="flex gap-4 shrink-0">
-            <button
-              onClick={handleBack}
-              className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-              style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}
-            >
-              Back
-            </button>
-            <button
-              onClick={handleConfirmAndSend}
-              className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
-              style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
-            >
-              Confirm and send
-            </button>
-          </div>
-        </motion.div>
-      )}
+          {/* In-place confirm button */}
+          <AnimatePresence mode="wait" initial={false}>
+            {modalConfirmState === 'done' ? (
+              /* Done state — two 50/50 buttons */
+              <motion.div
+                key="done-row"
+                className="flex gap-3 shrink-0 w-full"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <button
+                  onClick={handleCloseDialog}
+                  className="flex-1 flex items-center justify-center text-base font-semibold transition-colors"
+                  style={{ backgroundColor: '#F5F6F8', borderRadius: '10px', height: '48px', color: '#21252C' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#EBEDF0'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#F5F6F8'}
+                >
+                  Done
+                </button>
+                <button
+                  className="flex-1 flex items-center justify-center gap-1.5 text-base font-semibold transition-colors"
+                  style={{ backgroundColor: hexToRgba(senderCompany.color, 0.1), borderRadius: '10px', height: '48px', color: '#21252C' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = hexToRgba(senderCompany.color, 0.18)}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = hexToRgba(senderCompany.color, 0.1)}
+                >
+                  View payment
+                  <ArrowUpRight size={15} strokeWidth={2} style={{ flexShrink: 0 }} />
+                </button>
+              </motion.div>
+            ) : (
+              /* Pre-done state — back chevron + animated single button */
+              <motion.div
+                key="confirm-row"
+                className="flex gap-3 shrink-0 w-full"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <AnimatePresence initial={false}>
+                  {modalConfirmState === 'idle' && (
+                    <motion.button
+                      key="back-btn"
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: '48px' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={handleBack}
+                      className="flex-shrink-0 flex items-center justify-center overflow-hidden"
+                      style={{ backgroundColor: '#F5F6F8', borderRadius: '10px', height: '48px' }}
+                    >
+                      <ChevronLeft size={18} style={{ color: '#596171' }} />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
 
-      {(flowState === 'sending' || flowState === 'sent') && (
-        <motion.div
-          key="sending"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center flex-1"
-        >
-          <div className="text-center">
-            <div className="text-2xl font-bold mb-2" style={{ color: '#21252C' }}>
-              {flowState === 'sent' ? 'Payment Sent!' : 'Sending payment...'}
-            </div>
-            <div className="text-gray-600">
-              {flowState === 'sent' ? 'Your payment has been successfully sent' : 'Please wait while we process your payment'}
-            </div>
-          </div>
+                <div
+                  className="flex-1 overflow-hidden"
+                  style={{ borderRadius: '10px' }}
+                  onMouseEnter={() => setModalBtnHovered(true)}
+                  onMouseLeave={() => setModalBtnHovered(false)}
+                >
+                  <motion.div
+                    animate={{ backgroundColor: modalBtnBg }}
+                    transition={{ duration: 0.35 }}
+                    style={{ borderRadius: '10px', cursor: modalConfirmState === 'idle' ? 'pointer' : 'default', height: '48px' }}
+                    onClick={modalConfirmState === 'idle' ? handleModalConfirm : undefined}
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      {modalConfirmState === 'idle' && (
+                        <motion.div key="confirm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+                          className="h-full flex items-center justify-center text-white text-base font-semibold">
+                          Confirm and send
+                        </motion.div>
+                      )}
+                      {modalConfirmState === 'sending' && (
+                        <motion.div key="sending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+                          className="h-full flex items-center justify-center gap-2 text-white text-base font-semibold">
+                          <svg width="16" height="16" viewBox="0 0 16 16" style={{ animation: 'profile-spin 0.9s linear infinite', flexShrink: 0 }}>
+                            <circle cx="8" cy="8" r="6.5" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" />
+                            <path d="M8 1.5 A6.5 6.5 0 0 1 14.5 8" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                          {sendingLabel}
+                        </motion.div>
+                      )}
+                      {modalConfirmState === 'sent' && (
+                        <motion.div key="sent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+                          className="h-full flex items-center justify-center gap-2 text-white text-base font-semibold">
+                          <Check size={16} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                          Received by {receiverCompany.name}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
     </AnimatePresence>
@@ -927,18 +1073,18 @@ export function PaymentFlow({
             </div>
           )}
 
-          <div className="flex gap-4 mt-8">
+          <div className="flex gap-3 mt-8">
             <button
               onClick={handleBackToProfile}
-              className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-              style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}
+              className="flex-shrink-0 flex items-center justify-center transition-colors"
+              style={{ backgroundColor: '#F5F6F8', borderRadius: '10px', width: '48px', height: '48px' }}
             >
-              Back
+              <ChevronLeft size={18} style={{ color: '#596171' }} />
             </button>
             <button
               onClick={handleConfirmAndSend}
-              className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
-              style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+              className="flex-1 py-3 text-white text-base font-semibold transition-colors"
+              style={{ backgroundColor: '#675DFF', borderRadius: '10px' }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
             >
@@ -987,18 +1133,18 @@ export function PaymentFlow({
             />
           </div>
 
-          <div className="flex gap-4 mt-8">
+          <div className="flex gap-3 mt-8">
             <button
               onClick={handleBack}
-              className="flex-1 px-6 py-3 border text-base font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-              style={{ borderColor: '#D8DEE4', borderRadius: '6px' }}
+              className="flex-shrink-0 flex items-center justify-center transition-colors"
+              style={{ backgroundColor: '#F5F6F8', borderRadius: '10px', width: '48px', height: '48px' }}
             >
-              Back
+              <ChevronLeft size={18} style={{ color: '#596171' }} />
             </button>
             <button
               onClick={handleConfirmAndSend}
-              className="flex-1 px-6 py-3 text-white text-base font-semibold transition-colors"
-              style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
+              className="flex-1 py-3 text-white text-base font-semibold transition-colors"
+              style={{ backgroundColor: '#675DFF', borderRadius: '10px' }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
             >
@@ -1044,12 +1190,51 @@ export function PaymentFlow({
       className="w-full h-full relative flex items-center justify-center p-8"
     >
       <div style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
-        <img src="/img/stripe-logo.svg" alt="Stripe" style={{ width: '24px', height: 'auto' }} />
+        <img src="/img/stripe-logo.svg" alt="Stripe" style={{ width: '16px', height: 'auto' }} />
         <span style={{ fontSize: '14px', fontWeight: 400, color: '#21252C' }}>
           <a href="https://profiles.stripe.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline', fontWeight: 600 }}>Profiles</a>
           {' '}powered by Stripe
         </span>
       </div>
+
+      {/* Sender mini widget */}
+      <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10 }}>
+        <Squircle cornerRadius={16} cornerSmoothing={1} className="overflow-hidden" style={{ filter: 'drop-shadow(0 4px 12px rgba(53,58,68,0.10))', backgroundColor: 'rgba(255, 255, 255, 0.7)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+          <div className="flex items-center gap-2.5" style={{ padding: '10px 14px' }}>
+            <div className="flex-shrink-0" style={{ width: '32px', height: '32px' }}>
+              {senderCompany.isCustomer ? (
+                <div className="w-full h-full rounded-xl flex items-center justify-center font-bold" style={{ backgroundColor: '#F5F6F8', color: '#596171', fontSize: '11px' }}>
+                  {senderCompany.icon}
+                </div>
+              ) : senderCompany.logoPath ? (
+                <img
+                  src={senderCompany.logoPath}
+                  alt={senderCompany.displayName}
+                  className="w-full h-full object-contain"
+                  style={senderCompany.id === 'openai' ? { filter: 'brightness(0)' } : undefined}
+                />
+              ) : (
+                <div className="w-full h-full rounded-xl flex items-center justify-center" style={{ backgroundColor: senderCompany.color }}>
+                  <span className="text-white font-bold" style={{ fontSize: '11px' }}>{senderCompany.icon}</span>
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="font-semibold" style={{ color: '#21252C', fontSize: '13px', lineHeight: '1.2' }}>{senderCompany.displayName}</div>
+              <div className="flex items-center mt-0.5">
+                {senderCompany.isCustomer ? (
+                  <span style={{ color: '#596171', fontSize: '11px' }}>{senderCompany.email}</span>
+                ) : (
+                  <span className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: '#ffffff', color: '#596171', fontSize: '11px' }}>
+                    @{senderCompany.name.toLowerCase().replace(/\s/g, '')}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </Squircle>
+      </div>
+
       <motion.div layout transition={{ type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.38 }} className="relative z-10 flex flex-col" style={{ width: '360px', gap: '32px' }}>
         {/* Profile card */}
         <motion.div layout transition={{ type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.38 }}>
@@ -1135,13 +1320,16 @@ export function PaymentFlow({
               <motion.div
                 ref={morphCardRef}
                 layout
-                animate={{ backgroundColor: profileReviewOpen ? '#ffffff' : '#21252C' }}
+                animate={{ backgroundColor: profileReviewOpen ? '#ffffff' : receiverCompany.color }}
                 className="relative w-full overflow-hidden"
                 style={{ clipPath: morphCardClipPath || undefined, cursor: profileReviewOpen ? 'default' : 'pointer' }}
                 onClick={!profileReviewOpen ? () => { setGlowHovered(false); setProfileReviewOpen(true); } : undefined}
               >
                 {/* Header — always present; colors animate dark→light as card opens */}
-                <div style={{ padding: '18px 20px' }} className={profileReviewOpen ? '' : 'text-center'}>
+                <div
+                  style={{ padding: '18px 20px' }}
+                  className={profileReviewOpen ? '' : 'text-center'}
+                >
                   <motion.div
                     animate={{ color: profileReviewOpen ? '#21252C' : '#ffffff' }}
                     className="font-semibold"
@@ -1154,7 +1342,29 @@ export function PaymentFlow({
                     className="mt-1"
                     style={{ fontSize: '14px' }}
                   >
-                    ${formatCentsAsDollars(amountInCents)} invoice received Feb 12
+                    <AnimatePresence mode="wait" initial={false}>
+                      {profileConfirmState === 'done' ? (
+                        <motion.span
+                          key="paid"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.25 }}
+                        >
+                          ${formatCentsAsDollars(amountInCents)} invoice paid {formatShortDate(new Date())}
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="received"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.25 }}
+                        >
+                          ${formatCentsAsDollars(amountInCents)} invoice received Feb 12
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 </div>
 
@@ -1168,38 +1378,99 @@ export function PaymentFlow({
                       transition={{ duration: 0.2, delay: 0.15 }}
                       className="px-5 pb-5"
                     >
-                      <div style={{ borderTop: '1px solid #E9EAEC', marginBottom: '20px' }} />
+                      {/* Description + divider — collapse when confirming */}
+                      <AnimatePresence initial={false}>
+                        {profileConfirmState === 'idle' && (
+                          <motion.div
+                            key="summary"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <div style={{ borderTop: '1px solid #E9EAEC', marginBottom: '20px' }} />
+                            <div className="mb-6">
+                              <SendingSummary
+                                amountInCents={amountInCents}
+                                displayValue={displayValue}
+                                onAmountInput={handleAmountInput}
+                                paymentMethod={paymentMethod}
+                                onPaymentMethodChange={onPaymentMethodChange}
+                                receiverCompany={receiverCompany}
+                                onReceiverCompanyChange={onReceiverCompanyChange}
+                                paymentMethodType={paymentMethodType}
+                                onMethodTypeChange={setPaymentMethodType}
+                                currentMethodType={currentMethodType}
+                                canEditMethod={false}
+                              />
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
-                      {/* Description */}
-                      <div className="mb-6">
-                        <SendingSummary
-                          amountInCents={amountInCents}
-                          displayValue={displayValue}
-                          onAmountInput={handleAmountInput}
-                          paymentMethod={paymentMethod}
-                          onPaymentMethodChange={onPaymentMethodChange}
-                          receiverCompany={receiverCompany}
-                          onReceiverCompanyChange={onReceiverCompanyChange}
-                          paymentMethodType={paymentMethodType}
-                          onMethodTypeChange={setPaymentMethodType}
-                          currentMethodType={currentMethodType}
-                          canEditMethod={false}
-                        />
-                      </div>
-
-                      {/* Confirm button */}
-                      <button
-                        onClick={() => {
-                          setProfileReviewOpen(false);
-                          handleConfirmAndSend();
-                        }}
-                        className="w-full px-6 py-3 text-white text-base font-semibold transition-colors"
-                        style={{ backgroundColor: '#675DFF', borderRadius: '6px' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5549E6'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#675DFF'}
+                      {/* Confirm / progress button — background animates, only content swaps */}
+                      <Squircle
+                        cornerRadius={12}
+                        cornerSmoothing={1}
+                        className="w-full overflow-hidden"
                       >
-                        Confirm and send
-                      </button>
+                        <motion.div
+                          animate={{
+                            backgroundColor: profileConfirmState === 'done'
+                              ? hexToRgba(senderCompany.color, profileBtnHovered ? 0.18 : 0.1)
+                              : profileConfirmState === 'idle' && profileBtnHovered
+                                ? brightenColor(receiverCompany.color, 0.85)
+                                : receiverCompany.color,
+                          }}
+                          transition={{ duration: 0.35 }}
+                          style={{ cursor: profileConfirmState === 'idle' || profileConfirmState === 'done' ? 'pointer' : 'default' }}
+                          onMouseEnter={() => setProfileBtnHovered(true)}
+                          onMouseLeave={() => setProfileBtnHovered(false)}
+                          onClick={profileConfirmState === 'idle' ? () => {
+                            setProfileConfirmState('sending');
+                            setTimeout(() => setProfileConfirmState('received'), 4000);
+                            setTimeout(() => setProfileConfirmState('done'), 8000);
+                          } : undefined}
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                            {profileConfirmState === 'idle' && (
+                              <motion.div key="confirm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                                <div className="px-6 py-3 text-white text-base text-center font-normal">
+                                  Confirm and send
+                                </div>
+                              </motion.div>
+                            )}
+                            {profileConfirmState === 'sending' && (
+                              <motion.div key="sending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                                <div className="px-6 py-3 flex items-center justify-center gap-2 text-white text-base font-normal">
+                                  <svg width="16" height="16" viewBox="0 0 16 16" style={{ animation: 'profile-spin 0.9s linear infinite', flexShrink: 0 }}>
+                                    <circle cx="8" cy="8" r="6.5" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" />
+                                    <path d="M8 1.5 A6.5 6.5 0 0 1 14.5 8" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                                  </svg>
+                                  {sendingLabel}
+                                </div>
+                              </motion.div>
+                            )}
+                            {profileConfirmState === 'received' && (
+                              <motion.div key="received" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                                <div className="px-6 py-3 flex items-center justify-center gap-2 text-white text-base font-normal">
+                                  <Check size={16} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                                  Received by {receiverCompany.name}
+                                </div>
+                              </motion.div>
+                            )}
+                            {profileConfirmState === 'done' && (
+                              <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                                <div className="px-6 py-3 flex items-center justify-center gap-2 text-base font-normal" style={{ color: '#21252C' }}>
+                                  View payment in dashboard
+                                  <ArrowUpRight size={16} strokeWidth={2} style={{ flexShrink: 0 }} />
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      </Squircle>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1226,7 +1497,7 @@ export function PaymentFlow({
                       setProfilePhase('payment');
                       setFlowState('select');
                     }}
-                    className="w-full rounded-xl text-left transition-opacity hover:opacity-80"
+                    className="w-full rounded-xl transition-opacity hover:opacity-80"
                     style={
                       opt.primary
                         ? { backgroundColor: '#21252C', padding: '14px 16px' }
@@ -1234,7 +1505,7 @@ export function PaymentFlow({
                     }
                   >
                     {opt.primary ? (
-                      <div>
+                      <div className="flex flex-col items-center">
                         <div className="text-sm font-semibold text-white">{opt.label}</div>
                         {opt.subtitle && (
                           <div className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
@@ -1243,7 +1514,7 @@ export function PaymentFlow({
                         )}
                       </div>
                     ) : (
-                      <span className="text-sm" style={{ color: '#596171' }}>{opt.label}</span>
+                      <span className="text-sm block text-center" style={{ color: '#596171' }}>{opt.label}</span>
                     )}
                   </button>
                 ))}
@@ -1455,7 +1726,7 @@ export function PaymentFlow({
                 {renderProfilesFlowStates()}
               </div>
               <div className="w-full max-w-[560px] shrink-0 flex items-center" style={{ gap: '8px' }}>
-                <img src="/img/stripe-logo.svg" alt="Stripe" style={{ width: '24px', height: 'auto' }} />
+                <img src="/img/stripe-logo.svg" alt="Stripe" style={{ width: '16px', height: 'auto' }} />
                 <span style={{ fontSize: '14px', fontWeight: 400, color: '#21252C' }}>
                   <a href="https://profiles.stripe.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline', fontWeight: 600 }}>Profiles</a>
                   {' '}powered by Stripe
@@ -1480,10 +1751,30 @@ export function PaymentFlow({
   );
 }
 
+// Opacity cycle: rotate [0.4, 0.7, 1.0] across three dots, top-to-bottom
+const DOT_CYCLE = [
+  [0.4, 0.7, 1.0],
+  [1.0, 0.4, 0.7],
+  [0.7, 1.0, 0.4],
+];
+
 function MethodChipConnector({ methodType, sendingState }: { methodType: MethodTypeOption; sendingState: SendingState }) {
-  const DOT_SIZE = 6;
   const DOT_GAP = 6;
   const CARD_GAP = 12;
+  const isSending = sendingState === 'sending';
+  const [cycleStep, setCycleStep] = useState(0);
+
+  useEffect(() => {
+    if (!isSending) {
+      setCycleStep(0);
+      return;
+    }
+    const id = setInterval(() => setCycleStep(s => (s + 1) % 3), 250);
+    return () => clearInterval(id);
+  }, [isSending]);
+
+  const dotSizes = [4, 5, 6];
+  const opacities = DOT_CYCLE[cycleStep];
 
   return (
     <div
@@ -1499,15 +1790,12 @@ function MethodChipConnector({ methodType, sendingState }: { methodType: MethodT
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: `${DOT_GAP}px` }}>
-        {[0, 1, 2].map((i) => (
-          <div
+        {dotSizes.map((size, i) => (
+          <motion.div
             key={i}
-            style={{
-              width: `${DOT_SIZE}px`,
-              height: `${DOT_SIZE}px`,
-              borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.65)',
-            }}
+            style={{ width: `${size}px`, height: `${size}px`, borderRadius: '50%', backgroundColor: '#ffffff' }}
+            animate={{ opacity: isSending ? opacities[i] : [0.4, 0.7, 1.0][i] }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
           />
         ))}
       </div>

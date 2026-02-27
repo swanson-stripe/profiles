@@ -1,13 +1,11 @@
 'use client';
 
-import { useRef, useState, useEffect, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import React, { useRef, useState, useEffect, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { getSvgPath } from 'figma-squircle';
 
-type SquircleProps = {
+type SquircleProps = React.HTMLAttributes<HTMLDivElement> & {
   cornerRadius?: number;
   cornerSmoothing?: number;
-  className?: string;
-  style?: CSSProperties;
   children?: ReactNode;
 };
 
@@ -43,6 +41,7 @@ export function Squircle({
   className,
   style,
   children,
+  ...rest
 }: SquircleProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [clipPath, setClipPath] = useState('');
@@ -73,6 +72,7 @@ export function Squircle({
       ref={ref}
       className={className}
       style={{ ...style, clipPath: clipPath || undefined }}
+      {...rest}
     >
       {children}
     </div>

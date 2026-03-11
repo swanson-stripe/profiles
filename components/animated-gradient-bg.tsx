@@ -14,10 +14,12 @@ function hexToRgba(hex: string, alpha: number): string {
 
 const ARROW_PATH = 'M10 18V15L12 14L10 13V10L16 14L10 18Z';
 const CELL = 40; // grid spacing in px
+const EXIT_PALETTE = ['#E84D6A', '#D0651C', '#4B9E2A', '#4D94E8', '#8A7FCE', '#6B7A8B'];
 
 function PriorityBackground({ className, children, triggerExit }: { className?: string; children?: ReactNode; triggerExit?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const arrowRefs = useRef<HTMLDivElement[]>([]);
+  const colorTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [dims, setDims] = useState({ cols: 0, rows: 0 });
 
   // Rebuild grid dimensions when container resizes
@@ -80,14 +82,21 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
 
   // Animate arrows out when triggerExit becomes true; reset when it returns to false
   useEffect(() => {
+    // Cancel any pending color-transition timeouts
+    colorTimeouts.current.forEach(clearTimeout);
+    colorTimeouts.current = [];
+
     if (!triggerExit) {
       arrowRefs.current.forEach((el) => {
         if (!el) return;
         el.style.animation = '';
         el.style.transform = '';
+        const path = el.querySelector('path');
+        if (path) { path.style.transition = ''; path.style.fill = ''; path.style.opacity = ''; }
       });
       return;
     }
+
     const cols = dims.cols || 1;
     arrowRefs.current.forEach((el, i) => {
       if (!el) return;
@@ -98,10 +107,24 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       const delay = Math.max(250, baseDelay + jitter);
       // Each arrow slides out over 1.2 – 1.9 s for a slow, drifting feel
       const duration = (1.2 + Math.random() * 0.7).toFixed(2);
+
       el.style.transition = 'none';
       el.style.transform = ''; // clear inline rotation so animation owns transform
       el.style.animation = `arrow-exit ${duration}s ease-in ${delay.toFixed(0)}ms forwards`;
+
+      // At the moment the arrow starts moving, smoothly shift its fill to a palette color
+      const color = EXIT_PALETTE[Math.floor(Math.random() * EXIT_PALETTE.length)];
+      const t = setTimeout(() => {
+        const path = el.querySelector('path');
+        if (!path) return;
+        path.style.transition = 'fill 0.5s ease, opacity 0.5s ease';
+        path.style.fill = color;
+        path.style.opacity = '0.2';
+      }, delay);
+      colorTimeouts.current.push(t);
     });
+
+    return () => { colorTimeouts.current.forEach(clearTimeout); };
   }, [triggerExit, dims.cols]);
 
   const arrows: { key: string; x: number; y: number }[] = [];

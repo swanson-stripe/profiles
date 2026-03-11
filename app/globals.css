@@ -16,3 +16,11 @@ body {
   0%   { transform: translateX(0); }
   100% { transform: translateX(1800px); }
 }
+
+/* Per-color fill animations for arrow exit — one keyframe per palette swatch */
+@keyframes arrow-fill-0 { from { fill: #3C4F69; opacity: 0.1; } to { fill: #E84D6A; opacity: 0.2; } }
+@keyframes arrow-fill-1 { from { fill: #3C4F69; opacity: 0.1; } to { fill: #D0651C; opacity: 0.2; } }
+@keyframes arrow-fill-2 { from { fill: #3C4F69; opacity: 0.1; } to { fill: #4B9E2A; opacity: 0.2; } }
+@keyframes arrow-fill-3 { from { fill: #3C4F69; opacity: 0.1; } to { fill: #4D94E8; opacity: 0.2; } }
+@keyframes arrow-fill-4 { from { fill: #3C4F69; opacity: 0.1; } to { fill: #8A7FCE; opacity: 0.2; } }
+@keyframes arrow-fill-5 { from { fill: #3C4F69; opacity: 0.1; } to { fill: #6B7A8B; opacity: 0.2; } }

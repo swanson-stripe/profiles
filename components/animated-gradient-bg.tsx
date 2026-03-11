@@ -19,7 +19,7 @@ const EXIT_PALETTE = ['#E84D6A', '#D0651C', '#4B9E2A', '#4D94E8', '#8A7FCE', '#6
 function PriorityBackground({ className, children, triggerExit }: { className?: string; children?: ReactNode; triggerExit?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const arrowRefs = useRef<HTMLDivElement[]>([]);
-  const colorTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const exitStarted = useRef(false); // prevent re-running when dims change mid-animation
   const [dims, setDims] = useState({ cols: 0, rows: 0 });
 
   // Rebuild grid dimensions when container resizes
@@ -82,20 +82,21 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
 
   // Animate arrows out when triggerExit becomes true; reset when it returns to false
   useEffect(() => {
-    // Cancel any pending color-transition timeouts
-    colorTimeouts.current.forEach(clearTimeout);
-    colorTimeouts.current = [];
-
     if (!triggerExit) {
+      exitStarted.current = false;
       arrowRefs.current.forEach((el) => {
         if (!el) return;
         el.style.animation = '';
         el.style.transform = '';
-        const path = el.querySelector('path');
-        if (path) { path.style.transition = ''; path.style.fill = ''; path.style.opacity = ''; }
+        const path = el.querySelector('path') as SVGPathElement | null;
+        if (path) { path.style.animation = ''; }
       });
       return;
     }
+
+    // Don't restart if dims change mid-animation (ResizeObserver can re-trigger this effect)
+    if (exitStarted.current) return;
+    exitStarted.current = true;
 
     const cols = dims.cols || 1;
     arrowRefs.current.forEach((el, i) => {
@@ -104,32 +105,22 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       // 500 ms global hold, then columns sweep left-to-right over ~2.5 s
       const baseDelay = 500 + col * 90;
       const jitter = (Math.random() - 0.5) * 300; // ±150 ms per-arrow randomness
-      const delay = Math.max(250, baseDelay + jitter);
+      const delay = Math.max(250, baseDelay + jitter).toFixed(0);
       // Each arrow slides out over 1.2 – 1.9 s for a slow, drifting feel
       const duration = (1.2 + Math.random() * 0.7).toFixed(2);
 
       el.style.transition = 'none';
       el.style.transform = ''; // clear inline rotation so animation owns transform
-      el.style.animation = `arrow-exit ${duration}s ease-in ${delay.toFixed(0)}ms forwards`;
+      el.style.animation = `arrow-exit ${duration}s ease-in ${delay}ms forwards`;
 
-      // At the moment the arrow starts moving, smoothly shift its fill to a palette color.
-      // We must promote the SVG presentation attributes to inline styles first and force a
-      // reflow to give the browser a concrete "from" value before the transition fires.
-      const color = EXIT_PALETTE[Math.floor(Math.random() * EXIT_PALETTE.length)];
-      const t = setTimeout(() => {
-        const path = el.querySelector('path') as SVGPathElement | null;
-        if (!path) return;
-        path.style.fill = '#3C4F69'; // lock in current fill as inline style
-        path.style.opacity = '0.1';  // lock in current opacity as inline style
-        void path.getBoundingClientRect(); // force reflow — establishes the "from" state
-        path.style.transition = 'fill 0.6s ease, opacity 0.6s ease';
-        path.style.fill = color;
-        path.style.opacity = '0.2';
-      }, delay);
-      colorTimeouts.current.push(t);
+      // Apply fill-color animation directly on the path with the same delay — no setTimeout
+      // needed, CSS keyframes with explicit from/to handle everything reliably.
+      const colorIdx = Math.floor(Math.random() * EXIT_PALETTE.length);
+      const path = el.querySelector('path') as SVGPathElement | null;
+      if (path) {
+        path.style.animation = `arrow-fill-${colorIdx} 0.7s ease ${delay}ms forwards`;
+      }
     });
-
-    return () => { colorTimeouts.current.forEach(clearTimeout); };
   }, [triggerExit, dims.cols]);
 
   const arrows: { key: string; x: number; y: number }[] = [];

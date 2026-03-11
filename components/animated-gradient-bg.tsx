@@ -15,7 +15,7 @@ function hexToRgba(hex: string, alpha: number): string {
 const ARROW_PATH = 'M10 18V15L12 14L10 13V10L16 14L10 18Z';
 const CELL = 40; // grid spacing in px
 const EXIT_COLOR = '#533AFD';
-const EXIT_OPACITIES = [0.6, 0.4, 0.2];
+const EXIT_OPACITY = 0.7;
 
 function PriorityBackground({ className, children, triggerExit }: { className?: string; children?: ReactNode; triggerExit?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -140,11 +140,10 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       el.animate(arcKeyframes, { duration: durationMs, delay: delayMs, fill: 'forwards' });
 
       // Color tint via WAAPI — starts immediately on click
-      const targetOpacity = EXIT_OPACITIES[Math.floor(Math.random() * EXIT_OPACITIES.length)];
       const path = el.querySelector('path') as SVGPathElement | null;
       if (path) {
         path.animate(
-          [{ fill: '#3C4F69', opacity: 0.1 }, { fill: EXIT_COLOR, opacity: targetOpacity }],
+          [{ fill: '#3C4F69', opacity: 0.1 }, { fill: EXIT_COLOR, opacity: EXIT_OPACITY }],
           { duration: 700, delay: delayMs, easing: 'ease', fill: 'forwards' }
         );
       }

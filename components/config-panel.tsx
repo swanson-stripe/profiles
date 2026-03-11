@@ -53,7 +53,7 @@ export function ConfigPanel({
   onReset,
 }: ConfigPanelProps) {
   const [displayValue, setDisplayValue] = useState(formatCentsAsDollars(amountInCents));
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
 
   const layouts: CardLayout[] = ['network', 'company', 'payment'];
   const displays: { value: DisplayMode; label: string }[] = [

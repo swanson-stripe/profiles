@@ -114,7 +114,7 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
 
       el.style.transition = 'none';
       el.style.transform = ''; // clear inline rotation so animation owns transform
-      el.style.animation = `arrow-exit ${durationS.toFixed(2)}s ease-in ${delayMs.toFixed(0)}ms forwards`;
+      el.style.animation = `arrow-exit ${durationS.toFixed(2)}s linear ${delayMs.toFixed(0)}ms forwards`;
 
       // Use the Web Animations API to tint the path fill — WAAPI drives SVG fill directly
       // without going through the CSS stylesheet cascade, which is unreliable for SVG fill.

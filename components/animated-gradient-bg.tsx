@@ -112,12 +112,17 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       el.style.transform = ''; // clear inline rotation so animation owns transform
       el.style.animation = `arrow-exit ${duration}s ease-in ${delay.toFixed(0)}ms forwards`;
 
-      // At the moment the arrow starts moving, smoothly shift its fill to a palette color
+      // At the moment the arrow starts moving, smoothly shift its fill to a palette color.
+      // We must promote the SVG presentation attributes to inline styles first and force a
+      // reflow to give the browser a concrete "from" value before the transition fires.
       const color = EXIT_PALETTE[Math.floor(Math.random() * EXIT_PALETTE.length)];
       const t = setTimeout(() => {
-        const path = el.querySelector('path');
+        const path = el.querySelector('path') as SVGPathElement | null;
         if (!path) return;
-        path.style.transition = 'fill 0.5s ease, opacity 0.5s ease';
+        path.style.fill = '#3C4F69'; // lock in current fill as inline style
+        path.style.opacity = '0.1';  // lock in current opacity as inline style
+        void path.getBoundingClientRect(); // force reflow — establishes the "from" state
+        path.style.transition = 'fill 0.6s ease, opacity 0.6s ease';
         path.style.fill = color;
         path.style.opacity = '0.2';
       }, delay);

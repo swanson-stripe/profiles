@@ -125,7 +125,7 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
         // independent of each arrow's individual slide delay.
         path.animate(
           [{ fill: '#3C4F69', opacity: 0.1 }, { fill: color, opacity: 0.4 }],
-          { duration: 700, delay: 500, easing: 'ease', fill: 'forwards' }
+          { duration: 700, delay: 0, easing: 'ease', fill: 'forwards' }
         );
       }
     });

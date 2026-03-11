@@ -788,7 +788,7 @@ export function PaymentFlow({
                       {receiverCompany.isCustomer ? (
                         <div className="w-8 h-8 flex items-center justify-center font-semibold" style={{ backgroundColor: '#F5F6F8', color: '#596171', fontSize: '11px' }}>{receiverCompany.icon}</div>
                       ) : receiverCompany.logoPath ? (
-                        <img src={receiverCompany.logoPath} alt={receiverCompany.name} className="w-8 h-8 object-contain" style={receiverCompany.id === 'openai' ? { filter: 'brightness(0)' } : undefined} />
+                        <img src={receiverCompany.logoPath} alt={receiverCompany.name} className="w-8 h-8 object-contain" style={receiverCompany.id === 'openai' && !receiverCompany.logoBg ? { filter: 'brightness(0)' } : undefined} />
                       ) : (
                         <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: receiverCompany.color }}>{receiverCompany.icon}</div>
                       )}
@@ -911,7 +911,7 @@ export function PaymentFlow({
                   {receiverCompany.isCustomer ? (
                     <div className="w-6 h-6 flex items-center justify-center font-semibold" style={{ backgroundColor: '#F5F6F8', color: '#596171', fontSize: '9px' }}>{receiverCompany.icon}</div>
                   ) : receiverCompany.logoPath ? (
-                    <img src={receiverCompany.logoPath} alt={receiverCompany.name} className="w-6 h-6 object-contain" style={receiverCompany.id === 'openai' ? { filter: 'brightness(0)' } : undefined} />
+                    <img src={receiverCompany.logoPath} alt={receiverCompany.name} className="w-6 h-6 object-contain" style={receiverCompany.id === 'openai' && !receiverCompany.logoBg ? { filter: 'brightness(0)' } : undefined} />
                   ) : (
                     <div className="w-6 h-6 flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: receiverCompany.color }}>{receiverCompany.icon}</div>
                   )}

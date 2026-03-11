@@ -89,7 +89,10 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
         el.style.animation = '';
         el.style.transform = '';
         const path = el.querySelector('path') as SVGPathElement | null;
-        if (path) { path.style.animation = ''; }
+        if (path) {
+          // Cancel any in-progress WAAPI fill animation and restore defaults
+          path.getAnimations().forEach((a) => a.cancel());
+        }
       });
       return;
     }
@@ -105,20 +108,23 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       // 500 ms global hold, then columns sweep left-to-right over ~2.5 s
       const baseDelay = 500 + col * 90;
       const jitter = (Math.random() - 0.5) * 300; // ±150 ms per-arrow randomness
-      const delay = Math.max(250, baseDelay + jitter).toFixed(0);
+      const delayMs = Math.max(250, baseDelay + jitter);
       // Each arrow slides out over 1.2 – 1.9 s for a slow, drifting feel
-      const duration = (1.2 + Math.random() * 0.7).toFixed(2);
+      const durationS = 1.2 + Math.random() * 0.7;
 
       el.style.transition = 'none';
       el.style.transform = ''; // clear inline rotation so animation owns transform
-      el.style.animation = `arrow-exit ${duration}s ease-in ${delay}ms forwards`;
+      el.style.animation = `arrow-exit ${durationS.toFixed(2)}s ease-in ${delayMs.toFixed(0)}ms forwards`;
 
-      // Apply fill-color animation directly on the path with the same delay — no setTimeout
-      // needed, CSS keyframes with explicit from/to handle everything reliably.
-      const colorIdx = Math.floor(Math.random() * EXIT_PALETTE.length);
+      // Use the Web Animations API to tint the path fill — WAAPI drives SVG fill directly
+      // without going through the CSS stylesheet cascade, which is unreliable for SVG fill.
+      const color = EXIT_PALETTE[Math.floor(Math.random() * EXIT_PALETTE.length)];
       const path = el.querySelector('path') as SVGPathElement | null;
       if (path) {
-        path.style.animation = `arrow-fill-${colorIdx} 0.7s ease ${delay}ms forwards`;
+        path.animate(
+          [{ fill: '#3C4F69', opacity: 0.1 }, { fill: color, opacity: 0.2 }],
+          { duration: 700, delay: delayMs, easing: 'ease', fill: 'forwards' }
+        );
       }
     });
   }, [triggerExit, dims.cols]);

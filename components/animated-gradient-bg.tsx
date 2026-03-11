@@ -121,9 +121,11 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       const color = EXIT_PALETTE[Math.floor(Math.random() * EXIT_PALETTE.length)];
       const path = el.querySelector('path') as SVGPathElement | null;
       if (path) {
+        // All arrows colorize together right when the animation begins (500 ms hold),
+        // independent of each arrow's individual slide delay.
         path.animate(
-          [{ fill: '#3C4F69', opacity: 0.1 }, { fill: color, opacity: 0.2 }],
-          { duration: 700, delay: delayMs, easing: 'ease', fill: 'forwards' }
+          [{ fill: '#3C4F69', opacity: 0.1 }, { fill: color, opacity: 0.4 }],
+          { duration: 700, delay: 500, easing: 'ease', fill: 'forwards' }
         );
       }
     });

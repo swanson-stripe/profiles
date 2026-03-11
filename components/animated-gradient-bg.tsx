@@ -15,7 +15,7 @@ function hexToRgba(hex: string, alpha: number): string {
 const ARROW_PATH = 'M10 18V15L12 14L10 13V10L16 14L10 18Z';
 const CELL = 40; // grid spacing in px
 const EXIT_COLOR = '#533AFD';
-const EXIT_OPACITIES = [1, 0.7, 0.4];
+const EXIT_OPACITIES = [0.6, 0.4, 0.2];
 
 function PriorityBackground({ className, children, triggerExit }: { className?: string; children?: ReactNode; triggerExit?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -112,7 +112,7 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       const baseDelay = 500 + col * 90;
       const jitter = (Math.random() - 0.5) * 300;
       const delayMs = Math.max(250, baseDelay + jitter);
-      const durationMs = (1.2 + Math.random() * 0.7) * 1000;
+      const durationMs = (2.4 + Math.random() * 1.4) * 1000;
 
       // Arc: each arrow follows a random quadratic Bézier curve going generally right.
       // cpY is the Y control point — negative = arc up, positive = arc down.

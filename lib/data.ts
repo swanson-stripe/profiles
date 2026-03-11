@@ -5,9 +5,12 @@ export type Company = {
   color: string;
   icon: string;
   logoPath?: string;
+  logoBg?: string;
   description?: string;
   isCustomer?: boolean;
   email?: string;
+  website?: string;
+  address?: string;
 };
 
 export type PaymentMethod = {
@@ -30,7 +33,10 @@ export const companies: Company[] = [
     color: '#4E9B7C',
     icon: '△',
     logoPath: '/img/logo-24-greenfield.svg',
+    logoBg: '#4E9B7C',
     description: 'Financial tools built for teams that move fast.',
+    website: 'greenfield.com',
+    address: '340 Pine Street\nSan Francisco, CA 94104',
   },
   {
     id: 'anthropic',
@@ -39,7 +45,10 @@ export const companies: Company[] = [
     color: '#A86536',
     icon: 'A\\',
     logoPath: '/img/logo-24-anthropic.svg',
-    description: 'AI safety company building reliable, interpretable, and steerable AI systems.',
+    logoBg: '#D4A27F',
+    description: 'AI research and products that put safety at the frontier.',
+    website: 'anthropic.com',
+    address: '548 Market Street\nSan Francisco, CA 94104',
   },
   {
     id: 'marcus-webb',
@@ -58,6 +67,8 @@ export const companies: Company[] = [
     icon: '◉',
     logoPath: '/img/logo-24-openai.svg',
     description: 'OpenAI builds safe, powerful AI that helps people and organizations unlock potential.',
+    website: 'openai.com',
+    address: '3180 18th Street\nSan Francisco, CA 94110',
   },
   {
     id: 'priya-anand',
@@ -85,6 +96,7 @@ export const companies: Company[] = [
     icon: '◐',
     logoPath: '/img/logo-24-lovable.svg',
     description: 'Build beautiful software, effortlessly.',
+    website: 'lovable.dev',
   },
   {
     id: 'cactuspractice',
@@ -94,6 +106,7 @@ export const companies: Company[] = [
     icon: '🌵',
     logoPath: '/img/logo-24-cactus.svg',
     description: 'A landscape design studio that transforms drab into fab.',
+    website: 'cactuspractice.com',
   },
 ];
 

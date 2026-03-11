@@ -27,9 +27,9 @@ type PaymentFlowProps = {
   gradientVariant: GradientVariant;
 };
 
-type MethodTypeOption = { value: string; label: string; subtitle: string; iconPath: string | null; deliveryText: string; transferText: string };
+type MethodTypeOption = { value: string; label: string; subtitle: string; iconPath: string | null; iconBg?: string; deliveryText: string; transferText: string };
 const methodTypeOptions: MethodTypeOption[] = [
-  { value: 'stripe-network', label: 'Stripe Network', subtitle: 'Arrives instantly · Free', iconPath: '/img/logo-24-stripe.svg', deliveryText: 'Receiving instantly', transferText: 'Funds will transfer instantly.' },
+  { value: 'stripe-network', label: 'Pay with Stripe', subtitle: 'Arrives instantly · Free', iconPath: '/img/transfer.svg', iconBg: '#EFECFC', deliveryText: 'Receiving instantly', transferText: 'Funds will transfer instantly.' },
   { value: 'direct-bank', label: 'Direct Bank Transfer', subtitle: '1–3 business days · Free', iconPath: '/img/method-32-bank.svg', deliveryText: '1–3 business days', transferText: 'Funds will arrive in 1–3 business days.' },
   { value: 'link', label: 'Link', subtitle: 'Arrives instantly · Free', iconPath: '/img/method-32-link.svg', deliveryText: 'Receiving instantly', transferText: 'Funds will transfer instantly.' },
   { value: 'stablecoin', label: 'Stablecoin', subtitle: 'Arrives instantly · Fee varies', iconPath: '/img/method-32-stablecoin.svg', deliveryText: 'Receiving instantly', transferText: 'Funds will transfer instantly.' },
@@ -244,6 +244,7 @@ type SendingSummaryProps = {
   currentMethodType: MethodTypeOption;
   canEditMethod?: boolean;
   verb?: string;
+  readOnly?: boolean;
 };
 
 function SendingSummary({
@@ -259,6 +260,7 @@ function SendingSummary({
   currentMethodType,
   canEditMethod = true,
   verb = 'Sending',
+  readOnly = false,
 }: SendingSummaryProps) {
   const [editing, setEditing] = React.useState<'amount' | 'source' | 'recipient' | 'method' | null>(null);
   const close = () => setEditing(null);
@@ -283,47 +285,53 @@ function SendingSummary({
   return (
     <p className="text-base" style={{ color: '#21252C', lineHeight: '1.7' }}>
       {verb}{' '}
-      {/* Amount */}
-      <EditablePill
-        isEditing={editing === 'amount'}
-        onOpen={() => setEditing('amount')}
-        displayContent={<span className="font-medium">${formatCentsAsDollars(amountInCents)}</span>}
-        editContent={
-          <input
-            autoFocus
-            type="text"
-            value={displayValue}
-            onChange={(e) => onAmountInput(e.target.value)}
-            onBlur={close}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') close(); }}
-            style={{
-              background: 'none', border: 'none', outline: 'none',
-              fontWeight: 600, fontSize: 'inherit', color: '#21252C',
-              padding: 0, width: `${Math.max(displayValue.length, 4)}ch`,
-            }}
-          />
-        }
-      />
+      {readOnly ? (
+        <span className="font-medium">${formatCentsAsDollars(amountInCents)}</span>
+      ) : (
+        <EditablePill
+          isEditing={editing === 'amount'}
+          onOpen={() => setEditing('amount')}
+          displayContent={<span className="font-medium">${formatCentsAsDollars(amountInCents)}</span>}
+          editContent={
+            <input
+              autoFocus
+              type="text"
+              value={displayValue}
+              onChange={(e) => onAmountInput(e.target.value)}
+              onBlur={close}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') close(); }}
+              style={{
+                background: 'none', border: 'none', outline: 'none',
+                fontWeight: 600, fontSize: 'inherit', color: '#21252C',
+                padding: 0, width: `${Math.max(displayValue.length, 4)}ch`,
+              }}
+            />
+          }
+        />
+      )}
       {' from '}
-      {/* Funds source */}
-      <EditablePill
-        isEditing={editing === 'source'}
-        onOpen={() => setEditing('source')}
-        displayContent={iconLabel(paymentMethod.methodLogoPath || paymentMethod.logoPath, '', `Main • ${paymentMethod.displayName}`)}
-        editContent={
-          <SelectPill
-            displayContent={iconLabel(paymentMethod.methodLogoPath || paymentMethod.logoPath, '', `Main • ${paymentMethod.displayName}`)}
-            selectValue={paymentMethod.id}
-            onSelectChange={(val) => {
-              const m = paymentMethods.find((p) => p.id === val);
-              if (m) onPaymentMethodChange(m);
-              close();
-            }}
-            onBlur={close}
-            options={paymentMethods.map((p) => ({ value: p.id, label: `Main · ${p.displayName}` }))}
-          />
-        }
-      />
+      {readOnly ? (
+        iconLabel(paymentMethod.methodLogoPath || paymentMethod.logoPath, '', `Main • ${paymentMethod.displayName}`)
+      ) : (
+        <EditablePill
+          isEditing={editing === 'source'}
+          onOpen={() => setEditing('source')}
+          displayContent={iconLabel(paymentMethod.methodLogoPath || paymentMethod.logoPath, '', `Main • ${paymentMethod.displayName}`)}
+          editContent={
+            <SelectPill
+              displayContent={iconLabel(paymentMethod.methodLogoPath || paymentMethod.logoPath, '', `Main • ${paymentMethod.displayName}`)}
+              selectValue={paymentMethod.id}
+              onSelectChange={(val) => {
+                const m = paymentMethods.find((p) => p.id === val);
+                if (m) onPaymentMethodChange(m);
+                close();
+              }}
+              onBlur={close}
+              options={paymentMethods.map((p) => ({ value: p.id, label: `Main · ${p.displayName}` }))}
+            />
+          }
+        />
+      )}
       {' to '}
       <span className="font-medium">{receiverCompany.displayName}</span>
       {' via '}
@@ -370,6 +378,7 @@ export function PaymentFlow({
   const [modalConfirmState, setModalConfirmState] = useState<'idle' | 'sending' | 'sent' | 'done'>('idle');
   const [modalBtnHovered, setModalBtnHovered] = useState(false);
   const [noteValue, setNoteValue] = useState('');
+  const [noteExpanded, setNoteExpanded] = useState(false);
   const [flowDirection, setFlowDirection] = useState<'forward' | 'backward'>('forward');
   const { ref: morphCardRef, clipPath: morphCardClipPath } = useSquircle(24, 1);
   const [drainProgress, setDrainProgress] = useState(0);
@@ -502,6 +511,8 @@ export function PaymentFlow({
       setFlowDirection('forward');
       setFlowState('review');
       setModalConfirmState('idle');
+      setNoteExpanded(false);
+      setNoteValue('');
     }
   };
 
@@ -584,7 +595,66 @@ export function PaymentFlow({
 
   const isCardComplete = cardAnimationState === 'complete';
 
-  const renderCardPreview = () => (
+  const isNetwork = layout === 'network';
+  const effectiveGradientVariant: GradientVariant = isNetwork ? 'network' : gradientVariant;
+  // True once the user has confirmed payment — arrows animate out and stay gone until reset
+  const arrowsExiting = modalConfirmState !== 'idle' || flowState === 'sending' || flowState === 'sent';
+
+  const renderNetworkCard = () => {
+    const c = receiverCompany;
+    const handle = `@${c.name.toLowerCase().replace(/\s/g, '')}`;
+    return (
+      <div style={{ filter: 'drop-shadow(0 8px 24px rgba(53,58,68,0.10))' }}>
+      <Squircle cornerRadius={24} cornerSmoothing={1} className="bg-white overflow-hidden" style={{ width: '300px' }}>
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Header: icon + name + handle */}
+          <div className="flex items-center gap-4">
+            <div className="flex-shrink-0" style={{ width: '44px', height: '44px' }}>
+              {c.logoPath ? (
+                <img src={c.logoPath} alt={c.name} style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
+              ) : (
+                <div className="w-full h-full rounded-2xl flex items-center justify-center" style={{ backgroundColor: c.color }}>
+                  <span className="text-white font-bold text-xl">{c.icon}</span>
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="font-bold text-lg" style={{ color: '#21252C' }}>{c.displayName}</div>
+              {!c.isCustomer && (
+                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-normal mt-0.5" style={{ backgroundColor: '#E9EAEC', color: '#596171' }}>{handle}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Description */}
+          {c.description && (
+            <p className="text-base leading-relaxed" style={{ color: '#21252C' }}>{c.description}</p>
+          )}
+
+          {/* Website */}
+          {c.website && (
+            <a href={`https://${c.website}`} target="_blank" rel="noopener noreferrer" className="text-sm underline" style={{ color: '#21252C' }}>{c.website}</a>
+          )}
+
+          {/* Address */}
+          {c.address && (
+            <p className="text-sm" style={{ color: '#21252C', whiteSpace: 'pre-line' }}>{c.address}</p>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center gap-1.5">
+            <span style={{ color: '#6C7688', fontSize: '12px' }}>Powered by</span>
+            <div role="img" aria-label="Stripe" style={{ width: '29px', height: '12px', position: 'relative', top: '1px', right: '1px', backgroundColor: '#6C7688', WebkitMaskImage: 'url(/img/logo-stripe-word.svg)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskImage: 'url(/img/logo-stripe-word.svg)', maskSize: 'contain', maskRepeat: 'no-repeat', maskPosition: 'center', flexShrink: 0 }} />
+          </div>
+        </div>
+      </Squircle>
+      </div>
+    );
+  };
+
+  const renderCardPreview = () => {
+    if (isNetwork) return renderNetworkCard();
+    return (
     <div
       ref={cardPreviewRef}
       style={{
@@ -599,7 +669,7 @@ export function PaymentFlow({
     >
       {/* popLayout immediately removes sender from layout flow so receiver starts sliding at the same time as the fade */}
       <AnimatePresence mode="popLayout">
-        {!isCardComplete && (
+        {!isCardComplete && !isNetwork && (
           <motion.div
             key="sender-group"
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}
@@ -633,7 +703,7 @@ export function PaymentFlow({
         />
       </motion.div>
     </div>
-  );
+  );};
 
   const sendingLabel = paymentMethodType === 'direct-bank' ? 'Transfer initiated' : 'Payment initiated';
   const modalSummaryVerb = modalConfirmState === 'idle' ? 'Sending' : modalConfirmState === 'done' ? 'Sent' : 'Sending';
@@ -674,22 +744,20 @@ export function PaymentFlow({
 
             <div className="mb-6">
               <label className="text-sm font-semibold text-gray-700 mb-2 block">From</label>
-              <div className="relative inline-block">
-                <Squircle cornerRadius={8} cornerSmoothing={1} className="overflow-hidden" style={{ backgroundColor: '#F5F6F8' }}>
-                  <div className="flex items-center gap-3 px-4 pointer-events-none" style={{ height: '48px' }}>
-                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
+              <div className="relative w-full">
+                <div className="pointer-events-none" style={{ backgroundColor: '#ffffff', border: '1px solid #E5E7EB', borderRadius: '8px' }}>
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg overflow-hidden">
                       {paymentMethod.methodLogoPath ? (
                         <img src={paymentMethod.methodLogoPath} alt={paymentMethod.name} className="w-8 h-8 object-contain" />
                       ) : (
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: paymentMethod.color }}>{paymentMethod.icon}</div>
+                        <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: paymentMethod.color }}>{paymentMethod.icon}</div>
                       )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-normal" style={{ color: '#21252C', fontSize: '14px' }}>Main · {paymentMethod.displayName}</span>
-                      <img src="/img/arrowUpDown.svg" alt="" className="opacity-50" style={{ width: '12px', height: '12px' }} />
-                    </div>
+                    <span className="flex-1 font-normal" style={{ color: '#21252C', fontSize: '14px' }}>Main · {paymentMethod.displayName}</span>
+                    <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
                   </div>
-                </Squircle>
+                </div>
                 <select
                   value={paymentMethod.id}
                   onChange={(e) => {
@@ -707,31 +775,31 @@ export function PaymentFlow({
 
             <div className="mb-6">
               <label className="text-sm font-semibold text-gray-700 mb-2 block">To</label>
-              <div className="relative inline-block">
-                <Squircle cornerRadius={8} cornerSmoothing={1} className="overflow-hidden" style={{ backgroundColor: '#F5F6F8' }}>
-                  <div className="flex items-center gap-3 px-4 pointer-events-none" style={{ height: '48px' }}>
-                    <div className="w-8 h-8 flex-shrink-0">
+              <div className="relative w-full">
+                <div className="pointer-events-none" style={{ backgroundColor: '#ffffff', border: '1px solid #E5E7EB', borderRadius: '8px' }}>
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <div className="w-8 h-8 flex-shrink-0 rounded-lg overflow-hidden" style={receiverCompany.logoBg ? { backgroundColor: receiverCompany.logoBg } : undefined}>
                       {receiverCompany.isCustomer ? (
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center font-semibold" style={{ backgroundColor: '#F5F6F8', color: '#596171', fontSize: '11px' }}>{receiverCompany.icon}</div>
+                        <div className="w-8 h-8 flex items-center justify-center font-semibold" style={{ backgroundColor: '#F5F6F8', color: '#596171', fontSize: '11px' }}>{receiverCompany.icon}</div>
                       ) : receiverCompany.logoPath ? (
-                        <img src={receiverCompany.logoPath} alt={receiverCompany.name} className="w-8 h-8 object-contain rounded-xl" style={receiverCompany.id === 'openai' ? { filter: 'brightness(0)' } : undefined} />
+                        <img src={receiverCompany.logoPath} alt={receiverCompany.name} className="w-8 h-8 object-contain" style={receiverCompany.id === 'openai' ? { filter: 'brightness(0)' } : undefined} />
                       ) : (
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: receiverCompany.color }}>{receiverCompany.icon}</div>
+                        <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: receiverCompany.color }}>{receiverCompany.icon}</div>
                       )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-normal" style={{ color: '#21252C', fontSize: '14px' }}>{receiverCompany.displayName}</span>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="font-normal truncate" style={{ color: '#21252C', fontSize: '14px' }}>{receiverCompany.displayName}</span>
                       {receiverCompany.isCustomer ? (
                         <span className="font-normal flex-shrink-0" style={{ color: '#596171', fontSize: '12px' }}>{receiverCompany.email}</span>
                       ) : (
-                        <span className="font-normal px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#D8DEE4', color: '#596171', fontSize: '12px' }}>
+                        <span className="font-normal px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#E9EAEC', color: '#596171', fontSize: '12px' }}>
                           @{receiverCompany.name.toLowerCase().replace(/\s/g, '')}
                         </span>
                       )}
-                      <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
                     </div>
+                    <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
                   </div>
-                </Squircle>
+                </div>
                 <select
                   value={receiverCompany.id}
                   onChange={(e) => {
@@ -747,42 +815,38 @@ export function PaymentFlow({
               </div>
             </div>
 
-            {isPersonInvolved && (
-              <div className="mb-6">
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">Method</label>
-                <div className="relative inline-block">
-                  <Squircle cornerRadius={8} cornerSmoothing={1} className="overflow-hidden" style={{ backgroundColor: '#F5F6F8' }}>
-                    <div className="flex items-center gap-3 px-4 pointer-events-none" style={{ height: '48px' }}>
-                      <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
-                        {currentMethodType.iconPath ? (
-                          <img src={currentMethodType.iconPath} alt={currentMethodType.label} className="w-8 h-8 object-contain" />
-                        ) : (
-                          <svg className="w-5 h-5" style={{ color: '#596171' }} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <path d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="min-w-0">
-                          <div className="font-normal" style={{ color: '#21252C', fontSize: '14px' }}>{currentMethodType.label}</div>
-                          <div style={{ color: '#596171', fontSize: '12px' }}>{currentMethodType.subtitle}</div>
-                        </div>
-                        <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
-                      </div>
+            <div className="mb-6">
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">Method</label>
+              <div className="relative w-full">
+                <div className="pointer-events-none" style={{ backgroundColor: '#ffffff', border: '1px solid #E5E7EB', borderRadius: '8px' }}>
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
+                      {currentMethodType.iconPath ? (
+                        <img src={currentMethodType.iconPath} alt={currentMethodType.label} className="object-contain" style={{ width: currentMethodType.iconBg ? '18px' : '32px', height: currentMethodType.iconBg ? '18px' : '32px' }} />
+                      ) : (
+                        <svg className="w-5 h-5" style={{ color: '#596171' }} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                          <path d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
+                        </svg>
+                      )}
                     </div>
-                  </Squircle>
-                  <select
-                    value={paymentMethodType}
-                    onChange={(e) => setPaymentMethodType(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                  >
-                    {methodTypeOptions.map((m) => (
-                      <option key={m.value} value={m.value} disabled={isPersonInvolved && m.value === 'stripe-network'}>{m.label}</option>
-                    ))}
-                  </select>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-normal leading-none" style={{ color: '#21252C', fontSize: '14px' }}>{currentMethodType.label}</div>
+                      <div className="leading-none mt-[4px]" style={{ color: '#596171', fontSize: '12px' }}>{currentMethodType.subtitle}</div>
+                    </div>
+                    <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
+                  </div>
                 </div>
+                <select
+                  value={paymentMethodType}
+                  onChange={(e) => setPaymentMethodType(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                >
+                  {methodTypeOptions.map((m) => (
+                    <option key={m.value} value={m.value} disabled={isPersonInvolved && m.value === 'stripe-network'}>{m.label}</option>
+                  ))}
+                </select>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Fixed buttons at bottom */}
@@ -810,48 +874,104 @@ export function PaymentFlow({
         >
           {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto mb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <h2 className="text-lg font-bold mb-6" style={{ color: '#21252C' }}>Summary</h2>
-
-            <div className="mb-6">
-              <SendingSummary
-                amountInCents={amountInCents}
-                displayValue={displayValue}
-                onAmountInput={handleAmountInput}
-                paymentMethod={paymentMethod}
-                onPaymentMethodChange={onPaymentMethodChange}
-                receiverCompany={receiverCompany}
-                onReceiverCompanyChange={onReceiverCompanyChange}
-                paymentMethodType={paymentMethodType}
-                onMethodTypeChange={setPaymentMethodType}
-                currentMethodType={currentMethodType}
-                canEditMethod={isPersonInvolved}
-                verb={modalSummaryVerb}
-              />
+            {/* Amount */}
+            <div className="mb-4">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">Amount</label>
+              <div className="py-2">
+                <span className="tabular-nums font-normal" style={{ color: '#21252C', fontSize: '14px' }}>${displayValue} {currency}</span>
+              </div>
             </div>
 
-            {/* Note — form when idle, text when sent, fades out if empty */}
+            {/* From */}
+            <div className="mb-4">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">From</label>
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-md overflow-hidden">
+                  {paymentMethod.methodLogoPath ? (
+                    <img src={paymentMethod.methodLogoPath} alt={paymentMethod.name} className="w-6 h-6 object-contain" />
+                  ) : (
+                    <div className="w-6 h-6 flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: paymentMethod.color }}>{paymentMethod.icon}</div>
+                  )}
+                </div>
+                <span className="font-normal" style={{ color: '#21252C', fontSize: '14px' }}>Main · {paymentMethod.displayName}</span>
+              </div>
+            </div>
+
+            {/* To */}
+            <div className="mb-4">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">To</label>
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-6 h-6 flex-shrink-0 rounded-md overflow-hidden" style={receiverCompany.logoBg ? { backgroundColor: receiverCompany.logoBg } : undefined}>
+                  {receiverCompany.isCustomer ? (
+                    <div className="w-6 h-6 flex items-center justify-center font-semibold" style={{ backgroundColor: '#F5F6F8', color: '#596171', fontSize: '9px' }}>{receiverCompany.icon}</div>
+                  ) : receiverCompany.logoPath ? (
+                    <img src={receiverCompany.logoPath} alt={receiverCompany.name} className="w-6 h-6 object-contain" style={receiverCompany.id === 'openai' ? { filter: 'brightness(0)' } : undefined} />
+                  ) : (
+                    <div className="w-6 h-6 flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: receiverCompany.color }}>{receiverCompany.icon}</div>
+                  )}
+                </div>
+                <span className="font-normal truncate" style={{ color: '#21252C', fontSize: '14px' }}>{receiverCompany.displayName}</span>
+              </div>
+            </div>
+
+            {/* Method */}
+            <div className="mb-4">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">Method</label>
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-md" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
+                  {currentMethodType.iconPath ? (
+                    <img src={currentMethodType.iconPath} alt={currentMethodType.label} className="object-contain" style={{ width: currentMethodType.iconBg ? '14px' : '24px', height: currentMethodType.iconBg ? '14px' : '24px' }} />
+                  ) : (
+                    <svg className="w-4 h-4" style={{ color: '#596171' }} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <path d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
+                    </svg>
+                  )}
+                </div>
+                <span className="font-normal" style={{ color: '#21252C', fontSize: '14px' }}>{currentMethodType.label}</span>
+              </div>
+            </div>
+
+            {/* Note */}
             <AnimatePresence initial={false}>
               {modalConfirmState === 'idle' && (
                 <motion.div
-                  key="note-form"
+                  key="note-section"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
                   style={{ overflow: 'hidden' }}
-                  className="mb-6"
+                  className="mb-4"
                 >
-                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    Add an internal note
-                    <span className="text-xs font-normal text-gray-500">Optional</span>
-                  </label>
-                  <textarea
-                    value={noteValue}
-                    onChange={(e) => setNoteValue(e.target.value)}
-                    placeholder="Describe the purpose of sending funds."
-                    className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none h-32"
-                    style={{ borderColor: '#D8DEE4', '--tw-ring-color': '#675DFF' } as React.CSSProperties}
-                  />
+                  {!noteExpanded ? (
+                    <button
+                      onClick={() => setNoteExpanded(true)}
+                      className="py-2 text-sm font-normal"
+                      style={{ color: '#675DFF' }}
+                    >
+                      Add an internal note
+                    </button>
+                  ) : (
+                    <motion.div
+                      key="note-textarea"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <label className="text-sm font-semibold text-gray-700 mb-2 block">Add an internal note <span className="font-normal text-gray-400">(optional)</span></label>
+                      <div className="pb-1">
+                        <textarea
+                          autoFocus
+                          value={noteValue}
+                          onChange={(e) => setNoteValue(e.target.value)}
+                          placeholder="Describe the purpose of sending funds."
+                          className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none h-24"
+                          style={{ borderColor: '#D8DEE4', '--tw-ring-color': '#675DFF' } as React.CSSProperties}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
               {modalConfirmState !== 'idle' && noteValue.trim() && (
@@ -1005,22 +1125,20 @@ export function PaymentFlow({
 
           <div className="mb-6">
             <label className="text-sm font-semibold text-gray-700 mb-2 block">From</label>
-            <div className="relative inline-block">
-              <Squircle cornerRadius={8} cornerSmoothing={1} className="overflow-hidden" style={{ backgroundColor: '#F5F6F8' }}>
-                <div className="flex items-center gap-3 px-4 pointer-events-none" style={{ height: '48px' }}>
-                  <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
+            <div className="relative w-full">
+              <div className="pointer-events-none" style={{ backgroundColor: '#ffffff', border: '1px solid #E5E7EB', borderRadius: '8px' }}>
+                <div className="flex items-center gap-3 px-3 py-3">
+                  <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg overflow-hidden">
                     {paymentMethod.methodLogoPath ? (
                       <img src={paymentMethod.methodLogoPath} alt={paymentMethod.name} className="w-8 h-8 object-contain" />
                     ) : (
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: paymentMethod.color }}>{paymentMethod.icon}</div>
+                      <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: paymentMethod.color }}>{paymentMethod.icon}</div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-normal" style={{ color: '#21252C', fontSize: '14px' }}>Main · {paymentMethod.displayName}</span>
-                    <img src="/img/arrowUpDown.svg" alt="" className="opacity-50" style={{ width: '12px', height: '12px' }} />
-                  </div>
+                  <span className="flex-1 font-normal" style={{ color: '#21252C', fontSize: '14px' }}>Main · {paymentMethod.displayName}</span>
+                  <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
                 </div>
-              </Squircle>
+              </div>
               <select
                 value={paymentMethod.id}
                 onChange={(e) => {
@@ -1039,27 +1157,25 @@ export function PaymentFlow({
           {isPersonInvolved && (
             <div className="mb-auto">
               <label className="text-sm font-semibold text-gray-700 mb-2 block">Method</label>
-              <div className="relative inline-block">
-                <Squircle cornerRadius={8} cornerSmoothing={1} className="overflow-hidden" style={{ backgroundColor: '#F5F6F8' }}>
-                  <div className="flex items-center gap-3 px-4 pointer-events-none" style={{ height: '48px' }}>
-                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
+              <div className="relative w-full">
+                <div className="pointer-events-none" style={{ backgroundColor: '#ffffff', border: '1px solid #E5E7EB', borderRadius: '8px' }}>
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
                       {currentMethodType.iconPath ? (
-                        <img src={currentMethodType.iconPath} alt={currentMethodType.label} className="w-8 h-8 object-contain" />
+                        <img src={currentMethodType.iconPath} alt={currentMethodType.label} className="object-contain" style={{ width: currentMethodType.iconBg ? '18px' : '32px', height: currentMethodType.iconBg ? '18px' : '32px' }} />
                       ) : (
                         <svg className="w-5 h-5" style={{ color: '#596171' }} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                           <path d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
                         </svg>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="min-w-0">
-                        <div className="font-normal" style={{ color: '#21252C', fontSize: '14px' }}>{currentMethodType.label}</div>
-                        <div style={{ color: '#596171', fontSize: '12px' }}>{currentMethodType.subtitle}</div>
-                      </div>
-                      <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-normal leading-none" style={{ color: '#21252C', fontSize: '14px' }}>{currentMethodType.label}</div>
+                      <div className="leading-none mt-[4px]" style={{ color: '#596171', fontSize: '12px' }}>{currentMethodType.subtitle}</div>
                     </div>
+                    <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
                   </div>
-                </Squircle>
+                </div>
                 <select
                   value={paymentMethodType}
                   onChange={(e) => setPaymentMethodType(e.target.value)}
@@ -1115,6 +1231,7 @@ export function PaymentFlow({
               onMethodTypeChange={setPaymentMethodType}
               currentMethodType={currentMethodType}
               canEditMethod={isPersonInvolved}
+              readOnly
             />
           </div>
 
@@ -1186,8 +1303,9 @@ export function PaymentFlow({
     <AnimatedGradientBg
       color1={gradientColor(senderCompany)}
       color2={gradientColor(receiverCompany)}
-      variant={gradientVariant}
+      variant={effectiveGradientVariant}
       className="w-full h-full relative flex items-center justify-center p-8"
+      triggerExit={arrowsExiting}
     >
       <div style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
         <img src="/img/stripe-logo.svg" alt="Stripe" style={{ width: '16px', height: 'auto' }} />
@@ -1403,6 +1521,7 @@ export function PaymentFlow({
                                 onMethodTypeChange={setPaymentMethodType}
                                 currentMethodType={currentMethodType}
                                 canEditMethod={false}
+                                readOnly
                               />
                             </div>
                           </motion.div>
@@ -1681,8 +1800,9 @@ export function PaymentFlow({
                       <AnimatedGradientBg
                         color1={gradientColor(senderCompany)}
                         color2={gradientColor(receiverCompany)}
-                        variant={gradientVariant}
+                        variant={effectiveGradientVariant}
                         className="w-1/2 flex items-center justify-center rounded-xl py-12"
+                        triggerExit={arrowsExiting}
                       >
                         {renderCardPreview()}
                       </AnimatedGradientBg>
@@ -1738,8 +1858,9 @@ export function PaymentFlow({
               <AnimatedGradientBg
                 color1={gradientColor(senderCompany)}
                 color2={gradientColor(receiverCompany)}
-                variant={gradientVariant}
+                variant={effectiveGradientVariant}
                 className="w-full h-full flex items-center justify-center rounded-2xl p-8"
+                triggerExit={arrowsExiting}
               >
                 {renderCardPreview()}
               </AnimatedGradientBg>

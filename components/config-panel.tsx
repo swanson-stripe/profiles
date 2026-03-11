@@ -55,7 +55,7 @@ export function ConfigPanel({
   const [displayValue, setDisplayValue] = useState(formatCentsAsDollars(amountInCents));
   const [isMinimized, setIsMinimized] = useState(false);
 
-  const layouts: CardLayout[] = ['company', 'payment'];
+  const layouts: CardLayout[] = ['network', 'company', 'payment'];
   const displays: { value: DisplayMode; label: string }[] = [
     { value: 'modal', label: 'Payment modal' },
     { value: 'profiles', label: 'Profiles page' },

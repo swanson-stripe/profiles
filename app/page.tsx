@@ -13,8 +13,8 @@ export default function Home() {
   const [senderCompany, setSenderCompany] = useState(companies.find(c => c.id === 'greenfield')!);
   const [receiverCompany, setReceiverCompany] = useState(companies.find(c => c.id === 'cactuspractice')!);
   const [paymentMethod, setPaymentMethod] = useState(paymentMethods[0]);
-  const [layout, setLayout] = useState<CardLayout>('company');
-  const [display, setDisplay] = useState<DisplayMode>('profiles');
+  const [layout, setLayout] = useState<CardLayout>('network');
+  const [display, setDisplay] = useState<DisplayMode>('modal');
   const [gradientVariant, setGradientVariant] = useState<GradientVariant>('pulse');
   const [resetKey, setResetKey] = useState(0);
 

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Squircle } from './squircle';
 import { motion, AnimatePresence } from 'motion/react';
 
-export type CardLayout = 'company' | 'payment' | 'none';
+export type CardLayout = 'company' | 'payment' | 'none' | 'network';
 export type SendingState = 'idle' | 'sending' | 'sent';
 
 type PaymentCardProps = {

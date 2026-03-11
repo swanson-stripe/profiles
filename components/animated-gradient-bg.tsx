@@ -1,9 +1,9 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useRef, useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 
-export type GradientVariant = 'drift' | 'pulse';
+export type GradientVariant = 'drift' | 'pulse' | 'network';
 
 function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -12,19 +12,165 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+const ARROW_PATH = 'M10 18V15L12 14L10 13V10L16 14L10 18Z';
+const CELL = 40; // grid spacing in px
+
+function PriorityBackground({ className, children, triggerExit }: { className?: string; children?: ReactNode; triggerExit?: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const arrowRefs = useRef<HTMLDivElement[]>([]);
+  const [dims, setDims] = useState({ cols: 0, rows: 0 });
+
+  // Rebuild grid dimensions when container resizes
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      const width = container.offsetWidth;
+      const height = container.offsetHeight;
+      setDims({
+        cols: Math.ceil(width / CELL) + 2,
+        rows: Math.ceil(height / CELL) + 2,
+      });
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  // Direct DOM mutation for pointer tracking — no React re-renders on mousemove
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onEnter = () => {
+      arrowRefs.current.forEach((el) => {
+        if (el) el.style.transition = 'none';
+      });
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      arrowRefs.current.forEach((el) => {
+        if (!el) return;
+        const ax = parseFloat(el.dataset.ax!);
+        const ay = parseFloat(el.dataset.ay!);
+        const angle = Math.atan2(cy - ay, cx - ax) * (180 / Math.PI);
+        el.style.transform = `rotate(${angle}deg)`;
+      });
+    };
+
+    const onLeave = () => {
+      arrowRefs.current.forEach((el) => {
+        if (!el) return;
+        el.style.transition = 'transform 0.7s ease-out';
+        el.style.transform = 'rotate(0deg)';
+      });
+    };
+
+    container.addEventListener('mouseenter', onEnter);
+    container.addEventListener('mousemove', onMove);
+    container.addEventListener('mouseleave', onLeave);
+    return () => {
+      container.removeEventListener('mouseenter', onEnter);
+      container.removeEventListener('mousemove', onMove);
+      container.removeEventListener('mouseleave', onLeave);
+    };
+  }, []);
+
+  // Animate arrows out when triggerExit becomes true; reset when it returns to false
+  useEffect(() => {
+    if (!triggerExit) {
+      arrowRefs.current.forEach((el) => {
+        if (!el) return;
+        el.style.animation = '';
+        el.style.transform = '';
+      });
+      return;
+    }
+    const cols = dims.cols || 1;
+    arrowRefs.current.forEach((el, i) => {
+      if (!el) return;
+      const col = i % cols;
+      // 500 ms global hold, then columns sweep left-to-right over ~2.5 s
+      const baseDelay = 500 + col * 90;
+      const jitter = (Math.random() - 0.5) * 300; // ±150 ms per-arrow randomness
+      const delay = Math.max(250, baseDelay + jitter);
+      // Each arrow slides out over 1.2 – 1.9 s for a slow, drifting feel
+      const duration = (1.2 + Math.random() * 0.7).toFixed(2);
+      el.style.transition = 'none';
+      el.style.transform = ''; // clear inline rotation so animation owns transform
+      el.style.animation = `arrow-exit ${duration}s ease-in ${delay.toFixed(0)}ms forwards`;
+    });
+  }, [triggerExit, dims.cols]);
+
+  const arrows: { key: string; x: number; y: number }[] = [];
+  for (let row = 0; row < dims.rows; row++) {
+    for (let col = 0; col < dims.cols; col++) {
+      arrows.push({ key: `${row}-${col}`, x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 });
+    }
+  }
+  // Reset refs array to match current grid size
+  arrowRefs.current = new Array(arrows.length);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative overflow-hidden ${className}`}
+      style={{ backgroundColor: '#ffffff', background: 'linear-gradient(180deg, rgba(216,222,228,0.08) 0%, rgba(216,222,228,0.16) 100%)' }}
+    >
+      {/* Arrow tile grid */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        {arrows.map(({ key, x, y }, i) => (
+          <div
+            key={key}
+            ref={(el) => { if (el) arrowRefs.current[i] = el; }}
+            data-ax={x}
+            data-ay={y}
+            style={{
+              position: 'absolute',
+              left: x,
+              top: y,
+              width: 0,
+              height: 0,
+              willChange: 'transform',
+            }}
+          >
+            <svg
+              width="26"
+              height="28"
+              viewBox="0 0 26 28"
+              fill="none"
+              style={{ display: 'block', transform: 'translate(-13px, -14px)' }}
+            >
+              <path opacity="0.1" d={ARROW_PATH} fill="#3C4F69" />
+            </svg>
+          </div>
+        ))}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 type Props = {
   color1: string;
   color2: string;
   variant: GradientVariant;
   className?: string;
   children?: ReactNode;
+  triggerExit?: boolean;
 };
 
-export function AnimatedGradientBg({ color1, color2, variant, className = '', children }: Props) {
+export function AnimatedGradientBg({ color1, color2, variant, className = '', children, triggerExit }: Props) {
   const c1 = hexToRgba(color1, 1);
   const c2 = hexToRgba(color2, 1);
   const c1Soft = hexToRgba(color1, 0.7);
   const c2Soft = hexToRgba(color2, 0.7);
+
+  if (variant === 'network') {
+    return <PriorityBackground className={className} triggerExit={triggerExit}>{children}</PriorityBackground>;
+  }
 
   return (
     <div className={`relative overflow-hidden ${className}`}>

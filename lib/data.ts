@@ -66,6 +66,7 @@ export const companies: Company[] = [
     color: '#000000',
     icon: '◉',
     logoPath: '/img/logo-24-openai.svg',
+    logoBg: '#000000',
     description: 'OpenAI builds safe, powerful AI that helps people and organizations unlock potential.',
     website: 'openai.com',
     address: '3180 18th Street\nSan Francisco, CA 94110',

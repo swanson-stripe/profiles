@@ -611,7 +611,13 @@ export function PaymentFlow({
           <div className="flex items-center gap-4">
             <div className="flex-shrink-0" style={{ width: '44px', height: '44px' }}>
               {c.logoPath ? (
-                <img src={c.logoPath} alt={c.name} style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
+                c.logoBg ? (
+                  <div className="w-full h-full rounded-2xl flex items-center justify-center" style={{ backgroundColor: c.logoBg, padding: '9px' }}>
+                    <img src={c.logoPath} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  </div>
+                ) : (
+                  <img src={c.logoPath} alt={c.name} style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
+                )
               ) : (
                 <div className="w-full h-full rounded-2xl flex items-center justify-center" style={{ backgroundColor: c.color }}>
                   <span className="text-white font-bold text-xl">{c.icon}</span>

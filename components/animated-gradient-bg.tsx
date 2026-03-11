@@ -120,11 +120,9 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       const cpY = (Math.random() - 0.45) * 500; // slight downward bias
       const endY = cpY * 0.6 + (Math.random() - 0.5) * 120;
 
-      // Build keyframes: grow in place first (0 → GROW), then arc along the Bézier
-      const GROW = 0.22;
+      // Build keyframes: arc along the Bézier from rest to exit
       const arcKeyframes: Keyframe[] = [
-        { transform: 'scale(1) translate(0px, 0px)',   offset: 0,    easing: 'ease-out' },
-        { transform: 'scale(1.3) translate(0px, 0px)', offset: GROW, easing: 'ease-in' },
+        { transform: 'translate(0px, 0px)', offset: 0, easing: 'ease-in' },
       ];
       const ARC_PTS = 5;
       for (let k = 1; k <= ARC_PTS; k++) {
@@ -132,8 +130,8 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
         const x = qbez(t, 0, exitX * 0.45, exitX);
         const y = qbez(t, 0, cpY, endY);
         arcKeyframes.push({
-          transform: `scale(1.3) translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`,
-          offset: GROW + t * (1 - GROW),
+          transform: `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`,
+          offset: t,
           easing: 'linear',
         });
       }

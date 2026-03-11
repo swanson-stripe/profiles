@@ -14,7 +14,8 @@ function hexToRgba(hex: string, alpha: number): string {
 
 const ARROW_PATH = 'M10 18V15L12 14L10 13V10L16 14L10 18Z';
 const CELL = 40; // grid spacing in px
-const EXIT_PALETTE = ['#E84D6A', '#D0651C', '#4B9E2A', '#4D94E8', '#8A7FCE', '#6B7A8B'];
+const EXIT_COLOR = '#533AFD';
+const EXIT_OPACITIES = [1, 0.7, 0.4];
 
 function PriorityBackground({ className, children, triggerExit }: { className?: string; children?: ReactNode; triggerExit?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,13 +119,11 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
 
       // Use the Web Animations API to tint the path fill — WAAPI drives SVG fill directly
       // without going through the CSS stylesheet cascade, which is unreliable for SVG fill.
-      const color = EXIT_PALETTE[Math.floor(Math.random() * EXIT_PALETTE.length)];
+      const targetOpacity = EXIT_OPACITIES[Math.floor(Math.random() * EXIT_OPACITIES.length)];
       const path = el.querySelector('path') as SVGPathElement | null;
       if (path) {
-        // All arrows colorize together right when the animation begins (500 ms hold),
-        // independent of each arrow's individual slide delay.
         path.animate(
-          [{ fill: '#3C4F69', opacity: 0.1 }, { fill: color, opacity: 0.4 }],
+          [{ fill: '#3C4F69', opacity: 0.1 }, { fill: EXIT_COLOR, opacity: targetOpacity }],
           { duration: 700, delay: 0, easing: 'ease', fill: 'forwards' }
         );
       }

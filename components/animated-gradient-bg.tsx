@@ -87,13 +87,10 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       exitStarted.current = false;
       arrowRefs.current.forEach((el) => {
         if (!el) return;
-        el.style.animation = '';
+        el.getAnimations().forEach((a) => a.cancel());
         el.style.transform = '';
         const path = el.querySelector('path') as SVGPathElement | null;
-        if (path) {
-          // Cancel any in-progress WAAPI fill animation and restore defaults
-          path.getAnimations().forEach((a) => a.cancel());
-        }
+        if (path) path.getAnimations().forEach((a) => a.cancel());
       });
       return;
     }
@@ -102,23 +99,49 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
     if (exitStarted.current) return;
     exitStarted.current = true;
 
+    // Quadratic Bézier helper
+    const qbez = (t: number, p0: number, p1: number, p2: number) =>
+      (1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t ** 2 * p2;
+
     const cols = dims.cols || 1;
     arrowRefs.current.forEach((el, i) => {
       if (!el) return;
       const col = i % cols;
-      // 500 ms global hold, then columns sweep left-to-right over ~2.5 s
+
+      // Stagger: 500 ms hold, columns sweep left-to-right over ~2.5 s
       const baseDelay = 500 + col * 90;
-      const jitter = (Math.random() - 0.5) * 300; // ±150 ms per-arrow randomness
+      const jitter = (Math.random() - 0.5) * 300;
       const delayMs = Math.max(250, baseDelay + jitter);
-      // Each arrow slides out over 1.2 – 1.9 s for a slow, drifting feel
-      const durationS = 1.2 + Math.random() * 0.7;
+      const durationMs = (1.2 + Math.random() * 0.7) * 1000;
 
-      el.style.transition = 'none';
-      el.style.transform = ''; // clear inline rotation so animation owns transform
-      el.style.animation = `arrow-exit ${durationS.toFixed(2)}s linear ${delayMs.toFixed(0)}ms forwards`;
+      // Arc: each arrow follows a random quadratic Bézier curve going generally right.
+      // cpY is the Y control point — negative = arc up, positive = arc down.
+      const exitX = 1400 + Math.random() * 500;
+      const cpY = (Math.random() - 0.45) * 500; // slight downward bias
+      const endY = cpY * 0.6 + (Math.random() - 0.5) * 120;
 
-      // Use the Web Animations API to tint the path fill — WAAPI drives SVG fill directly
-      // without going through the CSS stylesheet cascade, which is unreliable for SVG fill.
+      // Build keyframes: grow in place first (0 → GROW), then arc along the Bézier
+      const GROW = 0.22;
+      const arcKeyframes: Keyframe[] = [
+        { transform: 'scale(1) translate(0px, 0px)',   offset: 0,    easing: 'ease-out' },
+        { transform: 'scale(1.3) translate(0px, 0px)', offset: GROW, easing: 'ease-in' },
+      ];
+      const ARC_PTS = 5;
+      for (let k = 1; k <= ARC_PTS; k++) {
+        const t = k / ARC_PTS;
+        const x = qbez(t, 0, exitX * 0.45, exitX);
+        const y = qbez(t, 0, cpY, endY);
+        arcKeyframes.push({
+          transform: `scale(1.3) translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`,
+          offset: GROW + t * (1 - GROW),
+          easing: 'linear',
+        });
+      }
+
+      el.style.transform = '';
+      el.animate(arcKeyframes, { duration: durationMs, delay: delayMs, fill: 'forwards' });
+
+      // Color tint via WAAPI — starts immediately on click
       const targetOpacity = EXIT_OPACITIES[Math.floor(Math.random() * EXIT_OPACITIES.length)];
       const path = el.querySelector('path') as SVGPathElement | null;
       if (path) {

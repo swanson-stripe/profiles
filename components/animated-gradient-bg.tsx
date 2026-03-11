@@ -145,7 +145,7 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       if (path) {
         path.animate(
           [{ fill: '#3C4F69', opacity: 0.1 }, { fill: EXIT_COLOR, opacity: targetOpacity }],
-          { duration: 700, delay: 0, easing: 'ease', fill: 'forwards' }
+          { duration: 700, delay: delayMs, easing: 'ease', fill: 'forwards' }
         );
       }
     });

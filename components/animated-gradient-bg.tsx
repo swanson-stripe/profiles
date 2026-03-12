@@ -17,7 +17,7 @@ const CELL = 40; // grid spacing in px
 const EXIT_COLOR = '#533AFD';
 const EXIT_OPACITY = 0.7;
 
-function PriorityBackground({ className, children, triggerExit }: { className?: string; children?: ReactNode; triggerExit?: boolean }) {
+function PriorityBackground({ className, children, triggerExit, tileSvgPath }: { className?: string; children?: ReactNode; triggerExit?: boolean; tileSvgPath?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const arrowRefs = useRef<HTMLDivElement[]>([]);
   const exitStarted = useRef(false); // prevent re-running when dims change mid-animation
@@ -41,6 +41,7 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
 
   // Direct DOM mutation for pointer tracking — no React re-renders on mousemove
   useEffect(() => {
+    if (tileSvgPath) return; // tile mode has no pointer tracking
     const container = containerRef.current;
     if (!container) return;
 
@@ -83,6 +84,7 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
 
   // Animate arrows out when triggerExit becomes true; reset when it returns to false
   useEffect(() => {
+    if (tileSvgPath) return; // tile mode has no exit animation
     if (!triggerExit) {
       exitStarted.current = false;
       arrowRefs.current.forEach((el) => {
@@ -165,32 +167,28 @@ function PriorityBackground({ className, children, triggerExit }: { className?: 
       className={`relative overflow-hidden ${className}`}
       style={{ backgroundColor: '#ffffff', background: 'linear-gradient(180deg, rgba(216,222,228,0.08) 0%, rgba(216,222,228,0.16) 100%)' }}
     >
-      {/* Arrow tile grid */}
+      {/* Tile grid — arrows or custom SVG */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
         {arrows.map(({ key, x, y }, i) => (
           <div
             key={key}
-            ref={(el) => { if (el) arrowRefs.current[i] = el; }}
+            ref={tileSvgPath ? undefined : (el) => { if (el) arrowRefs.current[i] = el; }}
             data-ax={x}
             data-ay={y}
-            style={{
-              position: 'absolute',
-              left: x,
-              top: y,
-              width: 0,
-              height: 0,
-              willChange: 'transform',
-            }}
+            style={{ position: 'absolute', left: x, top: y, width: 0, height: 0, willChange: tileSvgPath ? undefined : 'transform' }}
           >
-            <svg
-              width="26"
-              height="28"
-              viewBox="0 0 26 28"
-              fill="none"
-              style={{ display: 'block', transform: 'translate(-13px, -14px)' }}
-            >
-              <path opacity="0.1" d={ARROW_PATH} fill="#3C4F69" />
-            </svg>
+            {tileSvgPath ? (
+              <img
+                src={tileSvgPath}
+                width={22}
+                height={24}
+                style={{ display: 'block', transform: 'translate(-11px, -12px)' }}
+              />
+            ) : (
+              <svg width="26" height="28" viewBox="0 0 26 28" fill="none" style={{ display: 'block', transform: 'translate(-13px, -14px)' }}>
+                <path opacity="0.1" d={ARROW_PATH} fill="#3C4F69" />
+              </svg>
+            )}
           </div>
         ))}
       </div>
@@ -206,16 +204,17 @@ type Props = {
   className?: string;
   children?: ReactNode;
   triggerExit?: boolean;
+  tileSvgPath?: string;
 };
 
-export function AnimatedGradientBg({ color1, color2, variant, className = '', children, triggerExit }: Props) {
+export function AnimatedGradientBg({ color1, color2, variant, className = '', children, triggerExit, tileSvgPath }: Props) {
   const c1 = hexToRgba(color1, 1);
   const c2 = hexToRgba(color2, 1);
   const c1Soft = hexToRgba(color1, 0.7);
   const c2Soft = hexToRgba(color2, 0.7);
 
   if (variant === 'network') {
-    return <PriorityBackground className={className} triggerExit={triggerExit}>{children}</PriorityBackground>;
+    return <PriorityBackground className={className} triggerExit={triggerExit} tileSvgPath={tileSvgPath}>{children}</PriorityBackground>;
   }
 
   return (

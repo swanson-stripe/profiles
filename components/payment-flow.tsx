@@ -599,6 +599,9 @@ export function PaymentFlow({
   const effectiveGradientVariant: GradientVariant = isNetwork ? 'network' : gradientVariant;
   // True once the user has confirmed payment — arrows animate out and stay gone until reset
   const arrowsExiting = modalConfirmState !== 'idle' || flowState === 'sending' || flowState === 'sent';
+  // When a person is the recipient in network mode, use the profile tile and skip the exit animation
+  const isPersonRecipient = isNetwork && receiverCompany.isCustomer;
+  const networkTileSvg = isPersonRecipient ? '/img/profile-y.svg' : undefined;
 
   const renderNetworkCard = () => {
     const c = receiverCompany;
@@ -1329,7 +1332,8 @@ export function PaymentFlow({
       color2={gradientColor(receiverCompany)}
       variant={effectiveGradientVariant}
       className="w-full h-full relative flex items-center justify-center p-8"
-      triggerExit={arrowsExiting}
+      triggerExit={isPersonRecipient ? false : arrowsExiting}
+      tileSvgPath={networkTileSvg}
     >
       <div style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
         <img src="/img/stripe-logo.svg" alt="Stripe" style={{ width: '16px', height: 'auto' }} />
@@ -1826,7 +1830,8 @@ export function PaymentFlow({
                         color2={gradientColor(receiverCompany)}
                         variant={effectiveGradientVariant}
                         className="w-1/2 flex items-center justify-center rounded-xl py-12"
-                        triggerExit={arrowsExiting}
+                        triggerExit={isPersonRecipient ? false : arrowsExiting}
+                        tileSvgPath={networkTileSvg}
                       >
                         {renderCardPreview()}
                       </AnimatedGradientBg>
@@ -1884,7 +1889,8 @@ export function PaymentFlow({
                 color2={gradientColor(receiverCompany)}
                 variant={effectiveGradientVariant}
                 className="w-full h-full flex items-center justify-center rounded-2xl p-8"
-                triggerExit={arrowsExiting}
+                triggerExit={isPersonRecipient ? false : arrowsExiting}
+                tileSvgPath={networkTileSvg}
               >
                 {renderCardPreview()}
               </AnimatedGradientBg>

@@ -602,6 +602,23 @@ export function PaymentFlow({
 
   const renderNetworkCard = () => {
     const c = receiverCompany;
+
+    // For person receivers, reuse the same PaymentCard used in company variants
+    if (c.isCustomer) {
+      return (
+        <PaymentCard
+          company={c}
+          paymentMethod={paymentMethod}
+          amount={receiverDisplayAmount}
+          layout="company"
+          isReceiver
+          receiverDelivery={currentMethodType.deliveryText}
+          sendingState={sendingState}
+          dimAmount={isDraining && drainProgress < 0.02}
+        />
+      );
+    }
+
     const handle = `@${c.name.toLowerCase().replace(/\s/g, '')}`;
     return (
       <div style={{ filter: 'drop-shadow(0 8px 24px rgba(53,58,68,0.10))' }}>

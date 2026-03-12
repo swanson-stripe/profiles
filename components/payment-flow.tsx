@@ -29,7 +29,7 @@ type PaymentFlowProps = {
 
 type MethodTypeOption = { value: string; label: string; subtitle: string; iconPath: string | null; iconBg?: string; deliveryText: string; transferText: string };
 const methodTypeOptions: MethodTypeOption[] = [
-  { value: 'stripe-network', label: 'Pay with Stripe', subtitle: 'Arrives instantly · Free', iconPath: '/img/transfer.svg', iconBg: '#EFECFC', deliveryText: 'Receiving instantly', transferText: 'Funds will transfer instantly.' },
+  { value: 'stripe-network', label: 'Pay with Stripe', subtitle: 'Arrives instantly · Free', iconPath: '/img/method-32-instant.svg', deliveryText: 'Receiving instantly', transferText: 'Funds will transfer instantly.' },
   { value: 'direct-bank', label: 'Direct Bank Transfer', subtitle: '1–3 business days · Free', iconPath: '/img/method-32-bank.svg', deliveryText: '1–3 business days', transferText: 'Funds will arrive in 1–3 business days.' },
   { value: 'link', label: 'Link', subtitle: 'Arrives instantly · Free', iconPath: '/img/method-32-link.svg', deliveryText: 'Receiving instantly', transferText: 'Funds will transfer instantly.' },
   { value: 'stablecoin', label: 'Stablecoin', subtitle: 'Arrives instantly · Fee varies', iconPath: '/img/method-32-stablecoin.svg', deliveryText: 'Receiving instantly', transferText: 'Funds will transfer instantly.' },
@@ -844,7 +844,7 @@ export function PaymentFlow({
               <div className="relative w-full">
                 <div className="pointer-events-none" style={{ backgroundColor: '#ffffff', border: '1px solid #E5E7EB', borderRadius: '8px' }}>
                   <div className="flex items-center gap-3 px-3 py-3">
-                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
+                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg overflow-hidden" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
                       {currentMethodType.iconPath ? (
                         <img src={currentMethodType.iconPath} alt={currentMethodType.label} className="object-contain" style={{ width: currentMethodType.iconBg ? '18px' : '32px', height: currentMethodType.iconBg ? '18px' : '32px' }} />
                       ) : (
@@ -942,7 +942,7 @@ export function PaymentFlow({
             <div className="mb-4">
               <label className="text-sm font-semibold text-gray-700 mb-1 block">Method</label>
               <div className="flex items-center gap-2 py-2">
-                <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-md" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
+                <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-md overflow-hidden" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
                   {currentMethodType.iconPath ? (
                     <img src={currentMethodType.iconPath} alt={currentMethodType.label} className="object-contain" style={{ width: currentMethodType.iconBg ? '14px' : '24px', height: currentMethodType.iconBg ? '14px' : '24px' }} />
                   ) : (
@@ -1184,7 +1184,7 @@ export function PaymentFlow({
               <div className="relative w-full">
                 <div className="pointer-events-none" style={{ backgroundColor: '#ffffff', border: '1px solid #E5E7EB', borderRadius: '8px' }}>
                   <div className="flex items-center gap-3 px-3 py-3">
-                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
+                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg overflow-hidden" style={currentMethodType.iconBg ? { backgroundColor: currentMethodType.iconBg } : undefined}>
                       {currentMethodType.iconPath ? (
                         <img src={currentMethodType.iconPath} alt={currentMethodType.label} className="object-contain" style={{ width: currentMethodType.iconBg ? '18px' : '32px', height: currentMethodType.iconBg ? '18px' : '32px' }} />
                       ) : (

@@ -815,11 +815,11 @@ export function PaymentFlow({
                       <span className="font-normal truncate" style={{ color: '#21252C', fontSize: '14px' }}>{receiverCompany.displayName}</span>
                       {receiverCompany.isCustomer ? (
                         <span className="font-normal flex-shrink-0" style={{ color: '#596171', fontSize: '12px' }}>{receiverCompany.email}</span>
-                      ) : (
+                      ) : !isNetwork ? (
                         <span className="font-normal px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#E9EAEC', color: '#596171', fontSize: '12px' }}>
                           @{receiverCompany.name.toLowerCase().replace(/\s/g, '')}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <img src="/img/arrowUpDown.svg" alt="" className="opacity-50 flex-shrink-0" style={{ width: '12px', height: '12px' }} />
                   </div>

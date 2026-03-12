@@ -713,11 +713,12 @@ export function PaymentFlow({
 
   const sendingLabel = paymentMethodType === 'direct-bank' ? 'Transfer initiated' : 'Payment initiated';
   const modalSummaryVerb = modalConfirmState === 'idle' ? 'Sending' : modalConfirmState === 'done' ? 'Sent' : 'Sending';
+  const networkPurple = '#675DFF';
   const modalBtnBg = modalConfirmState === 'done'
-    ? hexToRgba(senderCompany.color, modalBtnHovered ? 0.18 : 0.1)
+    ? hexToRgba(isNetwork ? networkPurple : senderCompany.color, modalBtnHovered ? 0.18 : 0.1)
     : modalConfirmState === 'idle'
-      ? (modalBtnHovered ? '#5549E6' : '#675DFF')
-      : receiverCompany.color;
+      ? (modalBtnHovered ? '#5549E6' : networkPurple)
+      : (isNetwork ? networkPurple : receiverCompany.color);
 
   const renderModalFlowStates = () => (
     <AnimatePresence mode="wait">
@@ -1021,9 +1022,9 @@ export function PaymentFlow({
                 </button>
                 <button
                   className="flex-1 flex items-center justify-center gap-1.5 text-base font-semibold transition-colors"
-                  style={{ backgroundColor: hexToRgba(senderCompany.color, 0.1), borderRadius: '10px', height: '48px', color: '#21252C' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = hexToRgba(senderCompany.color, 0.18)}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = hexToRgba(senderCompany.color, 0.1)}
+                  style={{ backgroundColor: hexToRgba(isNetwork ? networkPurple : senderCompany.color, 0.1), borderRadius: '10px', height: '48px', color: '#21252C' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = hexToRgba(isNetwork ? networkPurple : senderCompany.color, 0.18)}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = hexToRgba(isNetwork ? networkPurple : senderCompany.color, 0.1)}
                 >
                   View payment
                   <ArrowUpRight size={15} strokeWidth={2} style={{ flexShrink: 0 }} />

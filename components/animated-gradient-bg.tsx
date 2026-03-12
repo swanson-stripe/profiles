@@ -178,12 +178,9 @@ function PriorityBackground({ className, children, triggerExit, tileSvgPath }: {
             style={{ position: 'absolute', left: x, top: y, width: 0, height: 0, willChange: tileSvgPath ? undefined : 'transform' }}
           >
             {tileSvgPath ? (
-              <img
-                src={tileSvgPath}
-                width={22}
-                height={24}
-                style={{ display: 'block', transform: 'translate(-11px, -12px)' }}
-              />
+              <svg width="22" height="24" viewBox="0 0 22 24" fill="none" style={{ display: 'block', transform: 'translate(-11px, -12px)' }}>
+                <rect x="9" y="10" width="4" height="4" rx="1" fill="#ACB2BF" fillOpacity={0.2} />
+              </svg>
             ) : (
               <svg width="26" height="28" viewBox="0 0 26 28" fill="none" style={{ display: 'block', transform: 'translate(-13px, -14px)' }}>
                 <path opacity="0.1" d={ARROW_PATH} fill="#3C4F69" />
